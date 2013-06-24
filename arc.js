@@ -7,8 +7,8 @@ Arc ( consolidates 6 library types )
  - file correctly minifies using google closure w/ default settings
  - consolidates 6 library types - utility, dom, comms, booter, frame, 
    and algorithms ( academic ) into a single library, which decreases 
-   code redundancy and outside dependencies.
- - Uses single global.
+   code redundancy and outside dependencies
+ - Uses single global
  - safe extending of the global
 
 Utility ( compare to underscore.js )
@@ -1776,88 +1776,3 @@ Algorithms ( compare to nczonline.net )
     $A = $A.extendSafe($A, $P);
 
 }());
-
-
-/***************************************************************************************************
-**Application Start
-**
-**
-**
-*/
-
-(function () {
-
-
-    "use strict";
-
-
-    // validate
-
-
-    $A.validate({
-        In: 10,
-        Fi: 14,
-        Sa: 5,
-        Ch: 40
-    });
-
-
-    // configure
-
-
-    $A.config(function () {
-
-        // fast initial load
-
-        $A.Event.add('file_arcmarks_js', function () {
-            $A.Reg.setMany($A.getData('universals'));
-            $A.getElements('E');
-            $A.initByProperty('init');
-        });
-
-        // slow initial load
-
-        $A.Event.add('file_jqueryui_js', function () {
-            $A.getLibElements('J', $);
-            $A.initByProperty('initJ');
-        });
-
-        // paths
-
-        $A.Reg.setMany({
-            path_ajax:          'arcmarks/source/class.CMachine.php',
-            path_pictures:      'arcmarks/pictures/',
-            path_images:        'arcmarks/images/'
-        });
-
-    });
-
-
-    // resources
-
-
-    $A.setResources({
-        version: Date.now(),
-        resources:
-            [
-                'arcmarks/source/arccss.txt',
-                'arcmarks/source/arcmarks.htm',
-                'arcmarks/source/arcmarks.js',
-                'arcmarks/source/arclibs.txt'
-            ]
-    });
-
-
-    // run the booter
-
-
-    $A.boot();
-
-}());
-
-/***************************************************************************************************
-**Application End
-**
-**
-**
-*/
