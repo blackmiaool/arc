@@ -1,32 +1,66 @@
-/***************************************************************************************************
-**
-**file contains 5 separate modules - utilities, wom/dom, frame1, frame2, and algorithms
-**file passes jslint with options below
-**file correctly minifies using google closure w/ default settings
-**
-***************************************************************************************************/
+/*******************************************************************************
 
+Arc ( consolidates 6 library types )
 
-/***************************************************************************************************
-
-Arc ( consolidates 5 library types )
-
- - consolidates 5 library types - utility, dom abastractor, boot loader, application framework,
-   and algorithms into a single library, which decreases code redundancy and outside dependencies
+ - 80 character maximum width
+ - file passes jslint with options below
+ - file correctly minifies using google closure w/ default settings
+ - consolidates 6 library types - utility, dom, comms, booter, frame, 
+   and algorithms ( academic ) into a single library, which decreases 
+   code redundancy and outside dependencies.
+ - Uses single global.
+ - safe extending of the global
 
 Utility ( compare to underscore.js )
 
  - additional coverage including isObjectAbstract and isArrayAbstract
  - provides consistent naming convention for type checking
- - increased speed for looping idioms by function delegation
-  
-***************************************************************************************************/
+ - increased speed for looping idioms ( tested and eliminated native call )
+ - positive asserting conditionals for increased efficiency ( "drop-throughs" )
+
+Dom ( compare to jquery.js )
+
+ - integration w/ utilities for cleaner code
+ - readable code w/ limited dependencies and function branches
+ - consistent style
+ - encapsulation, i.e. real privacy when relevant
+
+Comms ( Compare to backbone.js)
+
+ - provides registry and event system to facilitate communications
+ - reduces dependencies and "sub-globals"
+
+Booter ( compare to head.js)
+
+ - serialized ajax guarantees ordering of resources /w out halting page
+ - completely dynamic file loads
+ - text blob allows consolidating static data into single request
+ - revision control eliminates redundant downloads
+ - browser detection for targeted CSS = eliminates incorrect CSS delivery
+ - browser detection to eliminate older browsers and require upgrade
+
+Frame ( compare to backbone.js  )
+
+ - integrated ajax framework to eliminate redundant ajax code
+ - consolidated model system for a single point of troubleshooting
+   that takes advantage of JavaScripts dynamic objects
+
+Algorithms ( compare to nczonline.net )
+
+ - provided for academic reasons only
+ - native implementations are likely faster
+
+*******************************************************************************/
+
+
 
 
 /*global
     $A: true,
     $: true
 */
+
+
 
 
 /*jslint
@@ -38,16 +72,25 @@ Utility ( compare to underscore.js )
 */
 
 
-/***************************************************************************************************
-**utilities
-***************************************************************************************************/
+
+
+/*******************************************************************************
+**utility
+*******************************************************************************/
+
+
 
 
 (function (self, undef) {
 
     "use strict";
 
+        // not used, for consistency
+
     var $A = {},
+
+        // public, will copy reference to window scope
+
         $P = {},
 
         // shortcuts to native implementations
@@ -57,20 +100,33 @@ Utility ( compare to underscore.js )
         slice = Array.prototype.slice;
 
     (function manageGlobal() {
-        $P.previous = window.$A;
-        $P.m_list = {util1: true};
+        $P.previous = self.$A;
+
+        // add utility and beging the module load list
+
+        $P.molist = {
+            utility: true
+        };
     }());
 
     $P.noConflict = function() {
-        window.$A = $P.previous;
+        self.$A = $P.previous;
         return self;
     };
+
+/******************************************************************************/
+
+    // !! is a boolean cast, && does not return a boolean
 
     $P.isElement = function(obj) {
         return !!(obj && obj.nodeType === 1);
     };
 
-    // multi-window, use toString
+/******************************************************************************/
+
+    // GENERIC TYPE CHECKS
+
+    // multi-window, slow
 
     $P.isType = function (type, obj) {
         return $P.getType(obj) === type;
@@ -80,32 +136,45 @@ Utility ( compare to underscore.js )
         return toString.call(obj).slice(8, -1);
     };
 
-    // single window only, use constructor property
+    // single window, fast
 
-    $P.isTypeZ = function (type, obj) {
-        return $P.getTypeZ(obj) === type;
+    $P.isTypeFast = function (type, obj) {
+        return $P.getTypeFast(obj) === type;
     };
 
-    $P.getTypeZ = function (obj) {
+    $P.getTypeFast = function (obj) {
         if (obj.constructor) {
             return obj.constructor.name;
         }
     };
 
+    // ARRAY TYPE CHECKS
+
     $P.isArray = isArrayNative || function (obj) {
         return toString.call(obj) === '[object Array]';
     };
 
-    $P.isObjectAbstract = function (obj) {
-        return obj === {}.constructor(obj);
-    };
+    // + casts to a numeric type
 
     $P.isArrayAbstract = function (obj) {
         return obj.length === +obj.length;
     };
 
+    // OBJECT TYPE CHECKS
+
+    // {}.constructor(obj) = Object(obj)
+
+    $P.isObjectAbstract = function (obj) {
+        return obj === {}.constructor(obj);
+    };
+
+    // SPECEFIC TYPE CHECKS
+
+    // handles `boxed` booleans as well
+
     $P.isBoolean = function (obj) {
-        return obj === true || obj === false || toString.call(obj) === '[object Boolean]';
+        return obj === true || obj === false ||
+            toString.call(obj) === '[object Boolean]';
     };
 
     $P.isUndefined = function (obj) {
@@ -116,7 +185,9 @@ Utility ( compare to underscore.js )
         return obj === null;
     };
 
-    // looping for collections
+/******************************************************************************/
+
+    // LOOPING
 
     $P.eachKey = function(obj, func, context) {
         var kindex,
@@ -143,10 +214,9 @@ Utility ( compare to underscore.js )
         }
     };
 
+    // non looping types pass through
+
     $P.each = function (obj, func, context) {
-        if (obj === null || obj === undef) {
-            return;
-        }
         if ($P.isArrayAbstract(obj)) {
             $P.eachIndex(obj, func, context);
             return;
@@ -156,15 +226,20 @@ Utility ( compare to underscore.js )
         }
     };
 
+/******************************************************************************/
+
     // build 'is' functions
 
-    $P.eachIndex(['Arguments', 'Function', 'String', 'Number', 'Date', 'RegExp', 'Object'], function(name) {
+    $P.eachIndex(['Arguments', 'Function', 'String', 'Number',
+            'Date', 'RegExp', 'Object'], function(name) {
         $P['is' + name] = function(obj) {
             return $P.isType(name, obj);
         };
     });
 
-    // extending
+/******************************************************************************/
+
+    // extend
 
     $P.extend = function(obj) {
         $P.eachIndex(slice.call(arguments, 1), function(source) {
@@ -178,6 +253,8 @@ Utility ( compare to underscore.js )
         return obj;
     };
 
+    // over-writing a key will throw an error w/ extendSafe
+
     $P.extendSafe = function (o1, o2) {
         var key;
         for (key in o2) {
@@ -189,11 +266,13 @@ Utility ( compare to underscore.js )
         return o1;
     };
 
-    // general
+    // clone is just extend applied to an object literal
 
     $P.clone = function(obj) {
         return $P.extend({}, obj);
     };
+
+    // ported from underscore
 
     $P.once = function(func) {
         var saved = false,
@@ -208,6 +287,8 @@ Utility ( compare to underscore.js )
         };
     };
 
+    // ported from underscore
+
     $P.uniqueId = (function () {
         var id_counter = 0;
         return function(prefix) {
@@ -216,16 +297,20 @@ Utility ( compare to underscore.js )
         };
     }());
 
-    // module complete - release to outer scope
+    // module complete
 
-    window.$A = $P.extendSafe($P, $A);
+    self.$A = $P.extendSafe($P, $A);
 
 }(this));
 
 
-/***************************************************************************************************
-**wom/dom-correlate to jquery.com
-***************************************************************************************************/
+
+
+/*******************************************************************************
+**dom
+*******************************************************************************/
+
+
 
 
 (function (win, doc, undef) {
@@ -240,16 +325,13 @@ Utility ( compare to underscore.js )
 
     (function manageGlobal() {
 
-        // validate dependency on util1
+        // requires utility
 
-        if (win.$A && window.$A.m_list && win.$A.m_list.util1) {
+        if (win.$A && window.$A.molist && win.$A.molist.utility) {
             $A = window.$A;
-
-            // add wom1
-
-            $A.m_list.wom1 = true;
+            $A.molist.dom = true;
         } else {
-            throw "wom1 requires util1 Module";
+            throw "dom requires utility Module";
         }
     }());
 
@@ -338,6 +420,8 @@ Utility ( compare to underscore.js )
         }
     };
 
+/******************************************************************************/
+
     $R.Constructor.prototype.fade = function (direction, max_time, callback) {
         var statics = {},
             self = this;
@@ -372,11 +456,19 @@ Utility ( compare to underscore.js )
         }());
     };
 
+/******************************************************************************/
+
     $R.functionNull = function () {
         return undefined;
     };
 
-    $R.Constructor.prototype.createEvent = (function () {
+/******************************************************************************/
+
+    // createEvent
+
+    // "click" is one type of HTMLEvents
+
+    $R.createEvent = function () {
         if (doc.createEvent) {
             return function (type) {
                 var event = doc.createEvent("HTMLEvents");
@@ -396,14 +488,29 @@ Utility ( compare to underscore.js )
             };
         }
         return $R.functionNull;
+    };
+
+    // two styles of calling
+
+    $R.Constructor.prototype.createEvent = function (type) {
+        return $R.createEvent.call(this, type);
+    };
+
+    $P.createEvent = (function () {
+        return function (element, type) {
+            var temp = [];
+            temp[0] = element;
+            $R.createEvent.call(temp, type);
+        };
     }());
 
-    $R.Constructor.prototype.addEvent = (function () {
+/******************************************************************************/
+
+    // addEvent
+
+    $R.addEvent = (function () {
         if (win.addEventListener) {
             return function (type, callback) {
-                if (type === '_dom') {
-                    type = 'DOMContentLoaded';
-                }
                 $A.eachKey(this, function (val) {
                     val.addEventListener(type, callback);
                 });
@@ -411,9 +518,6 @@ Utility ( compare to underscore.js )
         }
         if (win.attachEvent) {
             return function (type, callback) {
-                if (type === '_dom') {
-                    return;
-                }
                 $A.eachKey(this, function (val) {
                     val.attachEvent('on' + type, callback);
                 });
@@ -422,71 +526,98 @@ Utility ( compare to underscore.js )
         return $R.functionNull;
     }());
 
+    // two styles of calling
+
+    $R.Constructor.prototype.addEvent = function (type, callback) {
+        return $R.addEvent.call(this, type, callback);
+    };
+
+    $P.addEvent = (function () {
+        return function (element, type, callback) {
+            var temp = [];
+            temp[0] = element;
+            $R.addEvent.call(temp, type, callback);
+        };
+    }());
+
+/******************************************************************************/
+
+    // removeEvent
+
     $R.Constructor.prototype.removeEvent = (function () {
         if (win.removeEventListener) {
-            return function (type, func) {
+            return function (type, callback) {
                 $A.eachKey(this, function (val) {
-                    val.removeEventListener(type, func);
+                    val.removeEventListener(type, callback);
                 });
             };
         }
         if (win.detachEvent) {
-            return function (type, func) {
+            return function (type, callback) {
                 $A.eachKey(this, function (val) {
-                    val.detachEvent('on' + type, func);
+                    val.detachEvent('on' + type, callback);
                 });
             };
         }
         return $R.functionNull;
     }());
 
-    // wrap the dom
+    // two styles of calling
 
-    $P.Name = function (name) {
-        return doc.getElementsByName(name.slice(1));
+    $R.Constructor.prototype.removeEvent = function (type, callback) {
+        return $R.removeEvent.call(this, type, callback);
     };
 
-    $P.Class = function (klass) {
-        return doc.getElementsByClassName(klass);
+    $P.removeEvent = (function () {
+        return function (element, type, callback) {
+            var temp = [];
+            temp[0] = element;
+            $R.removeEvent.call(temp, type, callback);
+        };
+    }());
+
+
+/******************************************************************************/
+
+    // clean version of undefined
+
+    $P.undef = undef;
+
+/******************************************************************************/
+
+    // methods
+
+    $P.getComputedStyle = function (arg1, arg2) {
+        return win.getComputedStyle(arg1, arg2);
     };
 
-    $P.Id = function (Id) {
-        return doc.getElementById(Id.slice(1));
+    $P.clearTimeout = function (arg1) {
+        return win.clearTimeout(arg1);
+    };
+
+    $P.setTimeout = function (arg1, arg2) {
+        return win.setTimeout(arg1, arg2);
     };
 
     $P.createDocumentFragment = function () {
         return doc.createDocumentFragment();
     };
 
-    $P.createElement = function (name) {
-        return doc.createElement(name);
+    $P.createElement = function (arg1) {
+        return doc.createElement(arg1);
     };
 
-    $P.setTimeout = function (func, delay) {
-        return win.setTimeout(func, delay);
+    $P.setInterval = function (arg1, arg2) {
+        return win.setInterval(arg1, arg2);
     };
 
-    $P.clearTimeout = function (id) {
-        win.clearTimeout(id);
+    $P.clearInterval = function (arg1) {
+        return win.clearInterval(arg1);
     };
 
-    $P.setInterval = function (func, delay) {
-        return win.setInterval(func, delay);
-    };
-
-    $P.clearInterval = function (id) {
-        return win.clearInterval(id);
-    };
-
-    $P.getComputedStyle = function (el, el_pseudo) {
-        return win.getComputedStyle(el, el_pseudo);
-    };
-
-    $P.undef = undef;
+    // objects
 
     $P.indexedDB = win.indexedDB || win.mozIndexedDB || win.webKitIndexedDB;
-
-    $P.XMLHttpRequest = win.XMLHttpRequest;
 
     $P.FormData = win.FormData;
 
@@ -496,15 +627,68 @@ Utility ( compare to underscore.js )
 
     $P.sessionStorage = sessionStorage;
 
-    // abstract the dom
+/******************************************************************************/
+
+    // new types
+
+    $P.FormClass = (function () {
+        var publik = function (form_data) {
+            this.form_hold = form_data;
+            this.form = new win.FormData();
+            $A.eachKey(form_data, function (val, key) {
+                this.form.append(key, val);
+            });
+            return this;
+        };
+        publik.prototype.getFormData = function () {
+            return this.form_data;
+        };
+        publik.prototype.getForm = function () {
+            return this.form;
+        };
+        return publik;
+    }());
+
+/******************************************************************************/
+
+    // new methods
+
+    $P.el = function (selector) {
+        var type = selector.match(/^(@|#|\.)([\x20-\x7E]+)$/),
+            type1 = type[1],
+            type2 = type[2];
+        if (!type) {
+            return;
+        }
+        if (type1 === '#') {
+            return doc.getElementById(type2);
+        }
+        if (type1 === '.' && doc.getElementsByClassName) {
+            return doc.getElementsByClassName(type2);
+        }
+        if (type1 === '@') {
+            return doc.getElementsByName(type2);
+        }
+    };
+
+    // class is a future reserved word
+
+    $P.klass = function (klass) {
+        return doc.getElementsByClassName(klass.slice(1));
+    };
+
+    $P.id = function (id) {
+        return doc.getElementById(id.slice(1));
+    };
+
+    // name is read only, used names
+
+    $P.names = function (name) {
+        return doc.getElementsByName(name.slice(1));
+    };
 
     $P.removeElement = function (element) {
         element.parentNode.removeChild(element);
-    };
-
-    $P.removeElementById = function (id) {
-        var elem;
-        (elem = document.getElementById(id)).parentNode.removeChild(elem);
     };
 
     $P.ajax = function (config_ajax) {
@@ -530,7 +714,8 @@ Utility ( compare to underscore.js )
         if (config_ajax.type === 'post') {
             xhr = new win.XMLHttpRequest();
             xhr.open("POST", config_ajax.url, true);
-            xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            xhr.setRequestHeader("Content-type",
+                    "application/x-www-form-urlencoded");
             xhr.onreadystatechange = function () {
                 if (this.readyState === 4) {
                     if (this.status === 200) {
@@ -540,6 +725,8 @@ Utility ( compare to underscore.js )
             };
             xhr.send(config_ajax.data);
         }
+
+        // handles FormData
 
         if (config_ajax.type === 'multi') {
             xhr = new win.XMLHttpRequest();
@@ -556,62 +743,155 @@ Utility ( compare to underscore.js )
 
     };
 
-    // gets HTML5 data attributes
 
-    $P.getData = function (id) {
-        var o = {},
-            data_dom = document.getElementById(id);
-        $A.eachKey(data_dom.dataset, function(val, key) {
-            o[key] = val;
+/******************************************************************************/
+
+    //Queue
+
+    $R.Queue = (function () {
+        var queue = [],
+            publik = {};
+        function getIndexFromToken(callback) {
+            var hold;
+            $A.eachIndex(queue, function(val, index) {
+                if (val.callback === callback) {
+                    hold = index;
+                    return index;
+                }
+            });
+            return hold;
+        }
+        function getBlockedProperty(item) {
+            var blocked;
+            if (item) {
+                blocked = item.blocked;
+            } else {
+                blocked = false;
+            }
+            return blocked;
+        }
+
+        // an item can not be blocked until its request has completed
+
+        publik.addItem = function (callback) {
+            var temp = {};
+            temp.blocked = false;
+            temp.callback = callback;
+            temp.response_text = null;
+            queue.push(temp);
+        };
+        publik.itemCompleted = function (response_text, callback) {
+            var index,
+                item,
+                blocked;
+            index = getIndexFromToken(callback);
+
+            // if not item 0 , the item is blocked, as items before it
+            // have not completed, save response_text
+
+            if (index !== 0) {
+                queue[index].blocked = true;
+                queue[index].response_text = response_text;
+            } else {
+                item = queue.shift();
+                item.callback(response_text);
+                blocked = getBlockedProperty(queue[0]);
+                while (blocked) {
+                    item = queue.shift();
+                    item.callback(item.response_text);
+                    blocked = getBlockedProperty(queue[0]);
+                }
+            }
+        };
+        return publik;
+    }());
+
+    $P.serialAjax = function (source, callback) {
+        $R.Queue.addItem(callback);
+        $P.ajax({
+            type:       'get',
+            url:        source,
+            callback:   function (response_text) {
+                $R.Queue.itemCompleted(response_text, callback);
+            }
         });
-        return o;
     };
+
+/******************************************************************************/
+
+    $P.getData = function getData(id) {
+        var data,
+            obj,
+            el;
+        el = document.getElementById(id);
+        obj = {};
+
+        if (el.dataset) {
+            $A.eachKey(el.dataset, function(val, key) {
+                obj[key] = val;
+            });
+        } else {
+            data = [].filter.call(el.attributes, function(at) {
+                return (/^data-/).test(at.name);
+            });
+            $A.eachIndex(data, function(val, i) {
+                obj[data[i].name.slice(5)] = val.value;
+            });
+        }
+        return obj;
+    };
+
+/******************************************************************************/
 
     // log
 
     $P.log = function (obj) {
         var logger,
-            temp,
             type,
-            ES5a = ['Arguments', 'Array', 'Object'],
-            ES5b = ['Boolean', 'Date', 'Error', 'Function', 'JSON', 'Math',
-                'Number', 'Null', 'RegExp', 'String', 'Undefined'],
-            completed = false;
+            temp,
+            completed;
 
-        // prevents IE error when not in debug mode.
+        // wrap win.console to protect from IE bug
 
         if (win.console) {
-
-            // safari requires bind instead of a simple alias
-
             logger = win.console.log.bind(win.console);
         } else {
             return;
         }
-        type = Object.prototype.toString.call(obj).slice(8, -1);
 
+        // get and validate type of obj
+
+        type = $A.getType(obj);
         if (!type) {
-            logger("Object type not found");
+            logger("Object did not stringify");
             return;
         }
 
-        // browser (host) objects
+/******************************************************************************/
+
+        // browser objects, just a place holder
 
         if (type === 'Event') {
+            logger('LOG|host object|>');
             logger(obj);
             return;
         }
 
+/******************************************************************************/
+
         // library objects
 
         if (win.jQuery && (obj instanceof win.jQuery)) {
-            logger('LOG|jQuery object|> ');
+            logger('LOG|jQuery object|>');
+            logger(obj);
             return;
         }
 
+/******************************************************************************/
+
         // language objects
 
-        $A.eachIndex(ES5a, function(val) {
+        $A.eachIndex(['Arguments', 'Array', 'Object'], function(val) {
             if (type === val) {
                 try {
                     temp = JSON.stringify(obj, null, 1);
@@ -619,33 +899,41 @@ Utility ( compare to underscore.js )
                     temp = false;
                 }
                 if (temp) {
+                    logger('LOG|Language Object|>');
                     logger("LOG|" + val + "|> " + temp);
                 } else {
+                    logger('LOG|Language Object|>');
                     logger("LOG|" + val + "|> " + obj);
                 }
                 completed = true;
             }
         });
 
-        // broken
-
-        $A.eachIndex(ES5b, function(val) {
-            if (type === val) {
-                logger("LOG|" + val + "|> " + obj);
-                completed = true;
-            }
-        });
-
-        // catch remaining using completed flag
-
-        if (completed !== true) {
-            logger(obj);
+        if (completed) {
+            return;
         }
+
+        $A.eachIndex(['Boolean', 'Date', 'Error', 'Function', 'JSON', 'Math',
+            'Number', 'Null', 'RegExp', 'String', 'Undefined'],
+            function(val) {
+                if (type === val) {
+                    logger('LOG|Language Object|>');
+                    logger(obj);
+                    completed = true;
+                }
+            });
+
+        if (completed) {
+            return;
+        }
+
+        // catch remaining
+
+        logger('LOG|Not Implmented|>');
+        logger(obj);
+        return;
+
     };
-
-
-
-    // module complete - release to outer scope
 
     win.$A = $A.extendSafe($P, $A);
 
@@ -653,9 +941,13 @@ Utility ( compare to underscore.js )
 
 
 
-/***************************************************************************************************
-**frame1
-***************************************************************************************************/
+
+
+/*******************************************************************************
+**comms
+*******************************************************************************/
+
+
 
 
 (function () {
@@ -663,21 +955,20 @@ Utility ( compare to underscore.js )
     "use strict";
 
     var $A,
-        $P = {}, // (p)ublic
-        $R = {}; // p(r)ivate
+        $P = {};
+
+    // require utility
 
     (function manageGlobal() {
-        if (window.$A && window.$A.m_list && window.$A.m_list.util1) {
+        if (window.$A && window.$A.molist && window.$A.molist.utility) {
             $A = window.$A;
-            $A.m_list.frame1 = true;
+            $A.molist.comms = true;
         } else {
-            throw "frame1 requires util1 module";
+            throw "comms requires utility module";
         }
     }());
 
-
-    //Reg
-
+    // a basic registry pattern with get/set and getMany/setMany
 
     $P.Reg = (function () {
         var publik = {},
@@ -699,9 +990,7 @@ Utility ( compare to underscore.js )
         return publik;
     }());
 
-
-    //Event
-
+    // a basic event system using an internal bus
 
     $P.Event = (function () {
         var publik = {},
@@ -729,394 +1018,17 @@ Utility ( compare to underscore.js )
         return publik;
     }());
 
-
-    //Queue
-
-
-    $R.Queue = (function () {
-        var queue = [],
-            publik = {};
-
-        // returns index in queue that holds a token
-
-        function getIndex(token) {
-            var hold;
-            $A.eachIndex(queue, function(val, index) {
-                if (val.token === token) {
-                    hold = index;
-                    return;
-                }
-            });
-            return hold;
-        }
-
-        // pass in queue[0], handles
-        // special case that queue is empty
-
-        function getNextBlocked(item) {
-            var blocked;
-            if (item) {
-                blocked = item.blocked;
-
-            // queue is empty, set blocked to false
-
-            } else {
-                blocked = false;
-            }
-            return blocked;
-        }
-        publik.add = function (token, callback) {
-
-            // stores 3 property object in an array
-
-            var temp = {};
-            temp.token = token;
-            temp.blocked = false;
-            temp.callback = callback;
-
-            // and pushes it on to the queue
-
-            queue.push(temp);
-        };
-        publik.complete = function (token) {
-            var index,
-                item,
-                blocked;
-            index = getIndex(token);
-
-            // if not item 0 , the item is blocked
-
-            if (index !== 0) {
-                queue[index].blocked = true;
-            } else {
-
-                // items is not blocked
-                // remove it and run the callback
-
-                item = queue.shift();
-                item.callback();
-
-                // check the next item to see if it was waiting and repeat
-
-                blocked = getNextBlocked(queue[0]);
-                while (blocked) {
-
-                    item = queue.shift();
-                    item.callback();
-                    blocked = getNextBlocked(queue[0]);
-                }
-            }
-        };
-        return publik;
-    }());
-
-
-    //saca
-
-    // takes multiple asynchronous requests and orders them
-    // using localStorage
-
-    $R.saca = function (token, source, callback) {
-        $R.Queue.add(token, callback);
-        $A.ajax({
-            type:       'get',
-            url:        source,
-            callback:   function (response_text) {
-                localStorage[token] = response_text;
-                $R.Queue.complete(token);
-            }
-        });
-    };
-
-
-    //Boot
-
-
-    $P.Boot = (function () {
-
-        var publik = {},
-            config_boot = {},
-            addElementText,
-            addElement,
-            parseToken,
-            updateAndLoad;
-
-        // parses a special text file used to consolidate static resources to a .txt file
-        // text file has delimeters of the form "<!--|identifier_extension|-->"
-
-        addElementText = function (file_token, callback) {
-            var tokens = localStorage[file_token].split(/<!--<\|([\x20-\x7E]+)(_[\x20-\x7E]+)\|>-->/g),
-                f_token,
-                index,
-                length,
-                text,
-                name,
-                temp;
-            for (length = tokens.length, index = 1; index < length; index += 3) {
-                name = tokens[index];
-                f_token = 'file_' + tokens[index] + tokens[index + 1];
-                text = tokens[index + 2];
-                temp = name.match(/\{([\x20-\x7E]*)\}/);
-                if (temp) {
-                    if (temp[1] === $P.Reg.get('browser_type')) {
-                        addElement(f_token, callback, text);
-                    }
-                } else {
-                    addElement(f_token, callback, text);
-                }
-            }
-        };
-
-        // dynamically adds resources to the dom
-        // file token is of the form "file_identifier_extension"
-
-        addElement = function (file_token, callback, text, source) {
-            var file_type = file_token.match(/file_[\x20-\x7E]+_([\x20-x7E]+)$/)[1],
-                element;
-            if (file_type === 'txt') {
-                addElementText(file_token);
-                return;
-            }
-            if (file_type === 'htm') {
-                element = document.createElement("div");
-                element.id = file_token;
-                if (!source) {
-                    element.innerHTML = text;
-                    document.body.appendChild(element);
-                    if (callback) {
-                        callback();
-                    }
-                    $P.Event.trigger(file_token);
-                }
-                return;
-            }
-            if (file_type === 'js') {
-                element = document.createElement('script');
-                element.id = file_token;
-                if (!source) {
-                    element.innerHTML = text;
-                    document.head.appendChild(element);
-                    if (callback) {
-                        callback();
-                    }
-                } else {
-                    element.onload = callback;
-                    element.async = true;
-                    element.src = source;
-                    document.head.appendChild(element);
-                }
-                $P.Event.trigger(file_token);
-                return;
-            }
-            if (file_type === 'css') {
-                if (!source) {
-                    element = document.createElement('style');
-                    element.id = file_token;
-                    element.innerHTML = text;
-                    document.head.appendChild(element);
-                    if (callback) {
-                        callback();
-                    }
-                } else {
-                    element = document.createElement("link");
-                    element.onload = callback;
-                    element.id = file_token;
-                    element.rel = "stylesheet";
-                    element.type = "text/css";
-                    element.href = source;
-                    document.head.appendChild(element);
-                }
-                $P.Event.trigger(file_token);
-                return;
-            }
-            if (file_type === 'ico') {
-                element = document.createElement("link");
-                element.onload = callback;
-                element.id = file_token;
-                element.rel = "icon";
-                if (!source) {
-                    element.href = text;
-                } else {
-                    element.href = source;
-                }
-                document.head.appendChild(element);
-                $P.Event.trigger(file_token);
-                return;
-            }
-            if (file_type === 'png') {
-                element = document.getElementById(file_token);
-                element.onload = callback;
-                element.id = file_token;
-                element.src = text;
-                $P.Event.trigger(file_token);
-                return;
-            }
-        };
-
-        // parses the input to boot()
-        // accepts "//", "/" and "" prefixes for urls
-
-        parseToken = function (source, callback) {
-            var matches,
-                prefix,
-                file_token;
-            matches = source.match(/^(\/\/|\/)?([\w\/\.]*)\/([\w\.]+)(\.)([\w]+)$/);
-            if (matches) {
-                prefix = matches[1];
-                file_token = 'file_' + matches[3] + '_' + matches[5];
-                source = source + '?_time=' + new Date().getTime();
-            }
-
-            // already cached, do not ajax in
-
-            if (config_boot.cached) {
-                addElement(file_token, callback, localStorage[file_token]);
-                return;
-            }
-
-            // no prefix or forward slash
-
-            // relative to directory || relative to root
-
-            if (prefix === undefined || prefix === '/') {
-                $R.saca(file_token, source, function () {
-                    addElement(file_token, callback, localStorage[file_token]);
-                });
-                return;
-            }
-
-            // double forward slash, not implemented
-
-            if (prefix === '//') {
-                return;
-            }
-        };
-
-        // manages version using localStorage
-        // simple serial loading of resources
-        // check version number to see if cache is available, then load
-
-        updateAndLoad = function () {
-            var kindex,
-                length;
-
-            // determine if a cached version of the static resources 
-
-            if (localStorage.file_version && localStorage.file_version >= config_boot.version) {
-                config_boot.cached = true;
-            } else {
-                localStorage.file_version = config_boot.version;
-                config_boot.cached = false;
-            }
-            for (kindex = 0, length = config_boot.resources.length; kindex < length; kindex += 1) {
-                parseToken(config_boot.resources[kindex], null);
-            }
-
-        };
-
-        // validate browser using version number
-
-        publik.validate = function (obj) {
-            var name = 'unknown',
-                version = 'unknown',
-                element,
-                temp;
-            $P.Reg.set('browser_type', null);
-            $P.Reg.set('browser_validated', null);
-
-            if (/MSIE (\d+\.\d+);/.test(navigator.userAgent)) {
-                $P.Reg.set('browser_type', 'ie');
-                name = 'Internet Explorer';
-                version = parseFloat(RegExp.$1);
-                if (version >= obj.In) {
-                    $P.Reg.set('browser_validated', true);
-                    return;
-                }
-            } else if (/Chrome[\/\s](\d+\.\d+)/.test(navigator.userAgent)) {
-                $P.Reg.set('browser_type', 'ch');
-                name = 'Chrome';
-                version = parseFloat(RegExp.$1);
-                if (version >= obj.Ch) {
-                    $P.Reg.set('browser_validated', true);
-                    return;
-                }
-            } else if (/Safari/.test(navigator.userAgent)) {
-                $P.Reg.set('browser_type', 'sa');
-                /Version[\/\s](\d+\.\d+)/.test(navigator.userAgent);
-                name = 'Safari';
-                version = parseFloat(RegExp.$1);
-                if (version >= obj.Sa) {
-                    $P.Reg.set('browser_validated', true);
-                    return;
-                }
-            } else if (navigator.userAgent.match(/Firefox[\/\s](\d+\.\d+)/)) {
-                $P.Reg.set('browser_type', 'ff');
-                temp = navigator.userAgent.match(/Firefox[\/\s](\d+\.\d+)/);
-                name = 'Firefox';
-                version = parseFloat(temp[1]);
-                if (version >= obj.Fi) {
-                    $P.Reg.set('browser_validated', true);
-                    return;
-                }
-            }
-
-            element = document.getElementById('browser_validation');
-            element.innerHTML += " You are running " + name + " " + version + ".";
-            element.style.display = 'block';
-
-            $P.Reg.set('browser_validated', false);
-            $P.Reg.set('browser_element', element);
-
-        };
-
-        // configure the framework, mostly paths
-
-        publik.config = function (func) {
-            config_boot.func = func;
-        };
-
-        // set resources
-
-        publik.setResources = function (obj) {
-            config_boot = $A.extend(config_boot, obj);
-        };
-
-        publik.run = function (skip) {
-
-            var val = $P.Reg.get('browser_validated');
-
-            if (!skip && !val) {
-                return;
-            }
-
-            if (!val) {
-                var element = $P.Reg.get('browser_element');
-                element.style.display = 'none';
-            }
-
-            // run the configuration function
-
-            if (config_boot.func) {
-                config_boot.func();
-            }
-
-            // boot the application
-
-            updateAndLoad();
-        };
-
-        return publik;
-
-    }());
-
     window.$A = $A.extendSafe($A, $P);
 
 }());
 
 
-/***************************************************************************************************
-**frame2
-***************************************************************************************************/
+
+
+/*******************************************************************************
+**booter
+*******************************************************************************/
+
 
 
 (function () {
@@ -1124,22 +1036,380 @@ Utility ( compare to underscore.js )
     "use strict";
 
     var $A,
-        $P = {},  // public
-        $R = {};  // private
+        $P = {},
+        $R = {};
+
+    $R.config_boot = {};
+
+    // requires utility, comms, and dom
+
+    (function manageGlobal() {
+        if (window.$A && window.$A.molist && window.$A.molist.utility &&
+                window.$A.molist.comms && window.$A.molist.dom) {
+            $A = window.$A;
+            $A.molist.booter = true;
+        } else {
+            throw "booter requires utility, dom, and comms module";
+        }
+    }());
+
+    // parses a special text file used to consolidate 
+    // static resources to a .txt file
+    // text file has delimeters of the form "<!--|identifier_extension|-->"
+
+/******************************************************************************/
+
+    $R.addElementText = function (callback, response_text) {
+
+        // parsing variables
+
+        var regex,
+            token_content,
+            subtoken,
+            subtoken_text,
+            name,
+            name_is_variable,
+
+        // looping variables
+
+            index,
+            length;
+
+        // broken up to shorten lines and make readable
+
+        // note use of asci for token identifier
+
+        regex = /<!--<\|([\x20-\x7E]+)(_[\x20-\x7E]+)\|>-->/g;
+
+        token_content = response_text.split(regex);
+
+        length = token_content.length;
+
+        for (index = 1; index < length; index += 3) {
+
+            // holds the token found in the super token
+
+            subtoken = 'file_' + token_content[index] +
+                    token_content[index + 1];
+
+            // holds the content found in the subtoken
+
+            subtoken_text = token_content[index + 2];
+
+            // holds the name
+
+            name = token_content[index];
+
+            // checks to see if the name is a variable
+
+            name_is_variable = name.match(/\{([\x20-\x7E]*)\}/);
+
+            if (name_is_variable) {
+                if (name_is_variable[1] === $A.Reg.get('browser_type')) {
+                    $R.addElement(subtoken, callback, subtoken_text);
+                }
+
+            // non-variable based
+
+            } else {
+                $R.addElement(subtoken, callback, subtoken_text);
+            }
+        }
+    };
+
+    // dynamically adds resources to the dom
+    // file token is of the form "file_identifier_extension"
+
+/******************************************************************************/
+
+    $R.addElement = function (file_token, callback, response_text, source) {
+        var file_type = file_token.match(/file_[\x20-\x7E]+_([\x20-x7E]+)$/)[1],
+            element;
+        if (file_type === 'txt') {
+            $R.addElementText(callback, response_text);
+            return;
+        }
+        if (file_type === 'htm') {
+            element = document.createElement("div");
+            element.id = file_token;
+            if (!source) {
+                element.innerHTML = response_text;
+                document.body.appendChild(element);
+                if (callback) {
+                    callback();
+                }
+                $A.Event.trigger(file_token);
+            }
+            return;
+        }
+        if (file_type === 'js') {
+            element = document.createElement('script');
+            element.id = file_token;
+            if (!source) {
+                element.innerHTML = response_text;
+                document.head.appendChild(element);
+                if (callback) {
+                    callback();
+                }
+            } else {
+                element.onload = callback;
+                element.async = true;
+                element.src = source;
+                document.head.appendChild(element);
+            }
+            $A.Event.trigger(file_token);
+            return;
+        }
+        if (file_type === 'css') {
+            if (!source) {
+                element = document.createElement('style');
+                element.id = file_token;
+                element.innerHTML = response_text;
+                document.head.appendChild(element);
+                if (callback) {
+                    callback();
+                }
+            } else {
+                element = document.createElement("link");
+                element.onload = callback;
+                element.id = file_token;
+                element.rel = "stylesheet";
+                element.type = "text/css";
+                element.href = source;
+                document.head.appendChild(element);
+            }
+            $A.Event.trigger(file_token);
+            return;
+        }
+        if (file_type === 'ico') {
+            element = document.createElement("link");
+            element.onload = callback;
+            element.id = file_token;
+            element.rel = "icon";
+            if (!source) {
+                element.href = response_text;
+            } else {
+                element.href = source;
+            }
+            document.head.appendChild(element);
+            $A.Event.trigger(file_token);
+            return;
+        }
+        if (file_type === 'png') {
+            element = document.getElementById(file_token);
+            element.onload = callback;
+            element.id = file_token;
+            element.src = response_text;
+            $A.Event.trigger(file_token);
+            return;
+        }
+    };
+
+/******************************************************************************/
+
+    // parses the input to boot()
+    // accepts "//", "/" and "" prefixes for urls
+
+    $R.parseToken = function (source, callback) {
+        var matches,
+            prefix,
+            file_token;
+        matches = source.match(/^(\/\/|\/)?([\w\/\.]*)\/([\w\.]+)(\.)([\w]+)$/);
+        if (matches) {
+            prefix = matches[1];
+            file_token = 'file_' + matches[3] + '_' + matches[5];
+            source = source + '?_time=' + new Date().getTime();
+        }
+
+        // already cached, do not ajax in
+
+        if ($R.config_boot.cached) {
+            $R.addElement(file_token, callback, localStorage[file_token]);
+            return;
+        }
+
+        // no prefix or forward slash
+
+        // relative to directory || relative to root
+
+        if (prefix === undefined || prefix === '/') {
+
+            // serialed ajax
+
+            $A.serialAjax(source, function (response_text) {
+
+                // add the resource to the dom
+
+                $R.addElement(file_token, callback, response_text);
+
+                // save it in localStorage for later use
+
+                localStorage[file_token] = response_text;
+
+            });
+
+            return;
+        }
+
+        // double forward slash, not implemented
+
+        if (prefix === '//') {
+            return;
+        }
+    };
+
+/******************************************************************************/
+
+    // manages version using localStorage
+    // simple serial loading of resources
+    // check version number to see if cache is available, then load
+
+    $R.updateAndLoad = function () {
+        var kindex,
+            length;
+
+        // determine if a cached version of the static resources 
+
+        if (localStorage.file_version && localStorage.file_version >=
+                $R.config_boot.version) {
+            $R.config_boot.cached = true;
+        } else {
+            localStorage.file_version = $R.config_boot.version;
+            $R.config_boot.cached = false;
+        }
+        for (kindex = 0, length = $R.config_boot.resources.length;
+                kindex < length; kindex += 1) {
+            $R.parseToken($R.config_boot.resources[kindex], null);
+        }
+
+    };
+
+    // validate browser using version number
+
+    $P.validate = function (obj) {
+        var name = 'unknown',
+            version = 'unknown',
+            element,
+            temp;
+        $A.Reg.set('browser_type', null);
+        $A.Reg.set('browser_validated', null);
+
+        if (/MSIE (\d+\.\d+);/.test(navigator.userAgent)) {
+            $A.Reg.set('browser_type', 'ie');
+            name = 'Internet Explorer';
+            version = parseFloat(RegExp.$1);
+            if (version >= obj.In) {
+                $A.Reg.set('browser_validated', true);
+                return;
+            }
+        } else if (/Chrome[\/\s](\d+\.\d+)/.test(navigator.userAgent)) {
+            $A.Reg.set('browser_type', 'ch');
+            name = 'Chrome';
+            version = parseFloat(RegExp.$1);
+            if (version >= obj.Ch) {
+                $A.Reg.set('browser_validated', true);
+                return;
+            }
+        } else if (/Safari/.test(navigator.userAgent)) {
+            $A.Reg.set('browser_type', 'sa');
+            /Version[\/\s](\d+\.\d+)/.test(navigator.userAgent);
+            name = 'Safari';
+            version = parseFloat(RegExp.$1);
+            if (version >= obj.Sa) {
+                $A.Reg.set('browser_validated', true);
+                return;
+            }
+        } else if (navigator.userAgent.match(/Firefox[\/\s](\d+\.\d+)/)) {
+            $A.Reg.set('browser_type', 'ff');
+            temp = navigator.userAgent.match(/Firefox[\/\s](\d+\.\d+)/);
+            name = 'Firefox';
+            version = parseFloat(temp[1]);
+            if (version >= obj.Fi) {
+                $A.Reg.set('browser_validated', true);
+                return;
+            }
+        }
+
+        element = document.getElementById('browser_validation');
+        element.innerHTML += " You are running " + name + " " + version + ".";
+        element.style.display = 'block';
+
+        $A.Reg.set('browser_validated', false);
+        $A.Reg.set('browser_element', element);
+
+    };
+
+    // configure the framework, mostly paths
+
+    $P.config = function (func) {
+        $R.config_boot.func = func;
+    };
+
+    // set resources
+
+    $P.setResources = function (obj) {
+        $R.config_boot = $A.extend($R.config_boot, obj);
+    };
+
+    $P.boot = function (skip) {
+
+        var val = $A.Reg.get('browser_validated');
+
+        if (!skip && !val) {
+            return;
+        }
+
+        if (!val) {
+            var element = $A.Reg.get('browser_element');
+            element.style.display = 'none';
+        }
+
+        // run the configuration function
+
+        if ($R.config_boot.func) {
+            $R.config_boot.func();
+        }
+
+        // boot the application
+
+        $R.updateAndLoad();
+    };
+
+    window.$A = $A.extendSafe($A, $P);
+
+}());
+
+
+/*******************************************************************************
+**frame
+*******************************************************************************/
+
+
+(function () {
+
+    "use strict";
+
+    var $A,
+        $P = {},
+        $R = {};
 
     $P.last = {};
     $R.Parsel = {};
     $R.pipe_hold = {};
 
+/******************************************************************************/
+
     (function manageGlobal() {
-        if (window.$A && window.$A.m_list && window.$A.m_list.util1 && window.$A.m_list.frame1) {
+        if (window.$A && window.$A.molist && window.$A.molist.utility &&
+                window.$A.molist.comms) {
             $A = window.$A;
-            $A.m_list.frame2 = true;
+            $A.molist.frame = true;
         } else {
-            throw "frame2 requires util1 and frame1 module";
+            throw "frame requires utility and comms module";
         }
     }());
 
+/******************************************************************************/
 
     // used to time performance
 
@@ -1163,7 +1433,8 @@ Utility ( compare to underscore.js )
                 index = measurements.length;
                 while (index) {
                     index -= 1;
-                    intervals[index - 1] = (measurements[index] - measurements[index - 1]) + 'ms';
+                    intervals[index - 1] = (measurements[index] -
+                            measurements[index - 1]) + 'ms';
                 }
                 return intervals;
             }
@@ -1187,7 +1458,7 @@ Utility ( compare to underscore.js )
 
                     // replace the id w/ the element reference
 
-                    list[key] = $A.Id(val);
+                    list[key] = $A.id(val);
                 });
             }
         });
@@ -1256,6 +1527,8 @@ Utility ( compare to underscore.js )
 
         if (config_module === 'constructor') {
 
+/******************************************************************************/
+
             // add the constructor and then delete the temporary copy
 
             if (o.constructor) {
@@ -1269,13 +1542,13 @@ Utility ( compare to underscore.js )
 
                 if (/^s_/.test(key)) {
 
-                    // s_ denotes a static property that is copied directly to the constructor
+                    // s_ denotes a static property
 
                     object_public[key] = val;
 
                 } else if (/^p_/.test(key)) {
 
-                    // privacy not implemented yet, just copy over as normal for now
+                    // privacy not implemented yet
 
                     object_public.prototype[key] = val;
 
@@ -1291,7 +1564,9 @@ Utility ( compare to underscore.js )
         }
     };
 
-    // machine automates ajax along with pre() and post()
+/******************************************************************************/
+
+    // machine automates ajax using pre() and post()
 
     $P.machine = function (obj) {
         var pipe,
@@ -1368,7 +1643,7 @@ Utility ( compare to underscore.js )
             publik = {};
 
         publik.boot = function () {
-            $A.Boot.run(true);
+            $A.boot(true);
         };
 
         publik.nuke = function () {
@@ -1404,9 +1679,9 @@ Utility ( compare to underscore.js )
 }());
 
 
-/***************************************************************************************************
-**algorithms-correlate to nczonline.net
-***************************************************************************************************/
+/*******************************************************************************
+**algorithms
+*******************************************************************************/
 
 
 (function () {
@@ -1415,14 +1690,14 @@ Utility ( compare to underscore.js )
     "use strict";
 
     var $A,
-        $P = {};  // public
+        $P = {};
 
     (function manageGlobal() {
-        if (window.$A && window.$A.m_list && window.$A.m_list.util1) {
+        if (window.$A && window.$A.molist && window.$A.molist.utility) {
             $A = window.$A;
-            $A.m_list.frame2 = true;
+            $A.molist.frame = true;
         } else {
-            throw "frame2 requires util1 and frame1 module";
+            throw "frame requires utility and booter module";
         }
     }());
 
@@ -1482,10 +1757,6 @@ Utility ( compare to underscore.js )
             // cache current element
 
             value = arr[i];
-
-            // reverse loop
-            // conditional - non-negative index && sorted value is greater then check value
-
             for (j = i - 1; (j > -1 && (arr[j] > value)); j--) {
 
                 // shift the array by copying one over
@@ -1523,8 +1794,8 @@ Utility ( compare to underscore.js )
     // validate
 
 
-    $A.Boot.validate({
-        In: 20,
+    $A.validate({
+        In: 10,
         Fi: 14,
         Sa: 5,
         Ch: 40
@@ -1534,9 +1805,9 @@ Utility ( compare to underscore.js )
     // configure
 
 
-    $A.Boot.config(function () {
+    $A.config(function () {
 
-        // fast
+        // fast initial load
 
         $A.Event.add('file_arcmarks_js', function () {
             $A.Reg.setMany($A.getData('universals'));
@@ -1544,7 +1815,7 @@ Utility ( compare to underscore.js )
             $A.initByProperty('init');
         });
 
-        // slow
+        // slow initial load
 
         $A.Event.add('file_jqueryui_js', function () {
             $A.getLibElements('J', $);
@@ -1565,7 +1836,7 @@ Utility ( compare to underscore.js )
     // resources
 
 
-    $A.Boot.setResources({
+    $A.setResources({
         version: Date.now(),
         resources:
             [
@@ -1580,7 +1851,7 @@ Utility ( compare to underscore.js )
     // run the booter
 
 
-    $A.Boot.run();
+    $A.boot();
 
 }());
 
