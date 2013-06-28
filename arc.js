@@ -3,13 +3,11 @@
 Arc ( consolidates 6 library types )
 
  - 80 character maximum width
- - file passes jslint with options below
- - file correctly minifies using google closure w/ default settings
+ - passes jslint with options below
+ - minifies w/ google closure
  - consolidates 6 library types - utility, dom, comms, booter, frame, 
-   and algorithms ( academic ) into a single library, which decreases 
-   code redundancy and outside dependencies
- - Uses single global
- - safe extending of the global
+   and algorithms
+ - uses single global with safe extending
 
 Utility ( compare to underscore.js )
 
@@ -20,30 +18,32 @@ Utility ( compare to underscore.js )
 
 Dom ( compare to jquery.js )
 
+ - additional coverage including serializedAjax
  - integration w/ utilities for cleaner code
  - readable code w/ limited dependencies and function branches
  - consistent style
- - encapsulation, i.e. real privacy when relevant
+ - privacy is used
 
 Comms ( Compare to backbone.js)
 
- - provides registry and event system to facilitate communications
+ - provides registry and event system
  - reduces dependencies and "sub-globals"
 
 Booter ( compare to head.js)
 
  - serialized ajax guarantees ordering of resources /w out halting page
- - completely dynamic file loads
+ - completely dynamic resource loads using dom appends
  - text blob allows consolidating static data into single request
- - revision control eliminates redundant downloads
- - browser detection for targeted CSS = eliminates incorrect CSS delivery
- - browser detection to eliminate older browsers and require upgrade
+ - revision control eliminates redundant downloads of static data
+ - browser detection for targeted CSS , eliminates incorrect CSS delivery
+ - browser detection to eliminate older browsers and reduce code base
 
 Frame ( compare to backbone.js  )
 
  - integrated ajax framework to eliminate redundant ajax code
- - consolidated model system for a single point of troubleshooting
-   that takes advantage of JavaScripts dynamic objects
+ - consolidated model system which takes advantage of 
+   JavaScripts dynamic objects
+ - single point of troubleshooting and performance analysis
 
 Algorithms ( compare to nczonline.net )
 
@@ -61,10 +61,15 @@ Algorithms ( compare to nczonline.net )
 */
 
 
+// jslint comments
+
+// allow access to the "dom"
+// allow block scoping in preparation for JavaScript Harmony
+// not all objects need filtering
+// ++ is OK instead of += 1
 
 
 /*jslint
-    ass: true
     browser: true,
     vars: true,
     forin: true,
@@ -85,24 +90,32 @@ Algorithms ( compare to nczonline.net )
 
     "use strict";
 
-        // not used, for consistency
+        // global
 
     var $A = {},
 
-        // public, will copy reference to window scope
+        // private
+
+        // $R = {},
+
+        // public
 
         $P = {},
 
-        // shortcuts to native implementations
+        // native methods
 
+        slice = Array.prototype.slice,
         isArrayNative = Array.isArray,
-        toString = Object.prototype.toString,
-        slice = Array.prototype.slice;
+        toString = Object.prototype.toString;
+
+        // removed, performed poorly in jsperf
+
+        // nativeForEach = Array.prototype.forEach;
 
     (function manageGlobal() {
         $P.previous = self.$A;
 
-        // add utility and beging the module load list
+        // add utility and begin the module list (molist)
 
         $P.molist = {
             utility: true
@@ -116,7 +129,7 @@ Algorithms ( compare to nczonline.net )
 
 /******************************************************************************/
 
-    // !! is a boolean cast, && does not return a boolean
+    // !! is a boolean cast as && does not return a boolean
 
     $P.isElement = function(obj) {
         return !!(obj && obj.nodeType === 1);
@@ -162,7 +175,7 @@ Algorithms ( compare to nczonline.net )
 
     // OBJECT TYPE CHECKS
 
-    // {}.constructor(obj) = Object(obj)
+    // jslint prefers {}.constructor(obj) over Object(obj)
 
     $P.isObjectAbstract = function (obj) {
         return obj === {}.constructor(obj);
@@ -187,42 +200,51 @@ Algorithms ( compare to nczonline.net )
 
 /******************************************************************************/
 
+    $P.undef = undef;
+
+/******************************************************************************/
+
     // LOOPING
 
     $P.eachKey = function(obj, func, context) {
-        var kindex,
+        var key,
             result;
-        for (kindex in obj) {
-            if (obj.hasOwnProperty(kindex)) {
-                result = func.call(context, obj[kindex], kindex, obj);
-                if (result) {
+        for (key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                result = func.call(context, obj[key], key, obj);
+                if (result !== undefined) {
                     return result;
                 }
             }
         }
     };
 
-    $P.eachIndex = function(obj, func, context) {
-        var kindex,
+    $P.eachIndex = function(arr, func, context) {
+        var index,
             length,
             result;
-        for (kindex = 0, length = obj.length; kindex < length; kindex += 1) {
-            result = func.call(context, obj[kindex], kindex, obj);
-            if (result) {
+        for (index = 0, length = arr.length; index < length; index += 1) {
+            result = func.call(context, arr[index], index, arr);
+            if (result !== undefined) {
                 return result;
             }
         }
     };
 
-    // non looping types pass through
-
-    $P.each = function (obj, func, context) {
-        if ($P.isArrayAbstract(obj)) {
-            $P.eachIndex(obj, func, context);
+    $P.each = function (abstraction, func, context) {
+        if ($P.isArrayAbstract(abstraction)) {
+            $P.eachIndex(abstraction, func, context);
             return;
         }
-        if ($P.isObjectAbstract(obj)) {
-            $P.eachKey(obj, func, context);
+        if ($P.isObjectAbstract(abstraction)) {
+            $P.eachKey(abstraction, func, context);
+        }
+    };
+
+    $P.eachString = function (str, func, context) {
+        var classSplitter = /^|\s+/;
+        if (classSplitter.test(str)) {
+            $P.eachIndex(str.split(classSplitter), func, context);
         }
     };
 
@@ -239,21 +261,18 @@ Algorithms ( compare to nczonline.net )
 
 /******************************************************************************/
 
-    // extend
+    // extend will over-write obj, accepts multiple arguments
 
     $P.extend = function(obj) {
-        $P.eachIndex(slice.call(arguments, 1), function(source) {
-            var key;
-            if (source) {
-                for (key in source) {
-                    obj[key] = source[key];
-                }
-            }
+        $P.eachIndex(slice.call(arguments, 1), function(val) {
+            $P.eachKey(val, function (val_inner, key) {
+                obj[key] = val_inner;
+            });
         });
         return obj;
     };
 
-    // over-writing a key will throw an error w/ extendSafe
+    // over-writing a key will throw an error
 
     $P.extendSafe = function (o1, o2) {
         var key;
@@ -272,31 +291,6 @@ Algorithms ( compare to nczonline.net )
         return $P.extend({}, obj);
     };
 
-    // ported from underscore
-
-    $P.once = function(func) {
-        var saved = false,
-            memory;
-        return function() {
-            if (saved) {
-                return memory;
-            }
-            memory = func.apply(this, arguments);
-            saved = true;
-            return memory;
-        };
-    };
-
-    // ported from underscore
-
-    $P.uniqueId = (function () {
-        var id_counter = 0;
-        return function(prefix) {
-            var id = String(++id_counter);
-            return prefix ? prefix + id : id;
-        };
-    }());
-
     // module complete
 
     self.$A = $P.extendSafe($P, $A);
@@ -313,7 +307,7 @@ Algorithms ( compare to nczonline.net )
 
 
 
-(function (win, doc, undef) {
+(function (win, doc) {
 
     "use strict";
 
@@ -331,9 +325,62 @@ Algorithms ( compare to nczonline.net )
             $A = window.$A;
             $A.molist.dom = true;
         } else {
-            throw "dom requires utility Module";
+            throw "dom requires utility module";
         }
     }());
+
+/******************************************************************************/
+
+    // loop through child elements
+
+    $P.eachChild = function (ref_el, func, context) {
+        var iter_el = ref_el.firstChild,
+            result;
+        do {
+            result = func.call(context, iter_el, ref_el);
+            if (result !== undefined) {
+                return result;
+            }
+            iter_el = iter_el.nextSibling;
+        } while (iter_el !== null);
+    };
+
+/******************************************************************************/
+
+    // implements add/remove classes w/ special toggle feature
+
+    $R.hasClass = function (el, name) {
+        return new RegExp('(\\s|^)' + name, 'g').test(el.className);
+    };
+
+    $R.toggleNS = function (el, ns, prop) {
+        $P.eachString(el.className, function (val) {
+            if (val.match(/toggle_/)) {
+                var names = val.split(/_/);
+                if (names[1] === ns && names[2] !== prop) {
+                    $P.removeClass(el, val);
+                }
+            }
+        });
+    };
+
+    $P.addClass = function (el, name) {
+        if (!$R.hasClass(el, name)) {
+            el.className += (el.className ? ' ' : '') + name;
+        }
+        var temp = name.match(/toggle_(\w+)_(\w+)/);
+        if (temp) {
+            $R.toggleNS(el, temp[1], temp[2]);
+            return;
+        }
+    };
+
+    $P.removeClass = function (el, name) {
+        el.className = name ? el.className.replace(new RegExp('(\\s|^)' +
+                name, 'g'), '') : '';
+    };
+
+/******************************************************************************/
 
     $R.Constructor = function (selector) {
         var type,
@@ -422,36 +469,111 @@ Algorithms ( compare to nczonline.net )
 
 /******************************************************************************/
 
-    $R.Constructor.prototype.fade = function (direction, max_time, callback) {
-        var statics = {},
-            self = this;
-        statics.elapsed = 0;
-        statics.GRANULARITY = 10;
-        if (statics.timeout_id) {
-            win.clearInterval(statics.timeout_id);
+    $R.proto = $R.Constructor.prototype;
+
+/******************************************************************************/
+
+    $R.expandFont = function (direction, max_time) {
+
+        // initialize 'this'
+
+        var self = this,
+            el_prim = self[0],
+            $R = {};
+
+        if (el_prim.timer_id) {
+            return;
         }
+
+        el_prim.style.fontSize = $P.getComputedStyle(el_prim,
+                null).getPropertyValue("font-size");
+
+        $R.final_size = parseInt(el_prim.style.fontSize, $R.RADIX);
+        $R.GRANULARITY = 10;
+        $R.time_elapsed = 0;
         (function next() {
-            var opacity;
-            statics.elapsed += statics.GRANULARITY;
-            if (!statics.timeout_id) {
-                statics.timeout_id = win.setInterval(next, statics.GRANULARITY);
+            $A.eachKey(self, function (val) {
+                if (direction === 'up') {
+                    val.style.fontSize = (($R.time_elapsed / max_time) *
+                            $R.final_size) + 'px';
+
+                } else if (direction === 'down') {
+                    val.style.fontSize = ((max_time - $R.time_elapsed) /
+                            max_time) + 'px';
+                }
+            });
+            $R.time_elapsed += $R.GRANULARITY;
+
+            // completed, do not call next
+
+            if (el_prim.timer_id_done) {
+                $P.clearTimeout(el_prim.timer_id);
+                el_prim.timer_id = undefined;
+                el_prim.timer_id_done = undefined;
+
+            // intermediate call to next
+
+            } else if ($R.time_elapsed < max_time) {
+                el_prim.timer_id = $P.setTimeout(next, $R.GRANULARITY);
+
+            // normalizing call to guarante (elapsed === max)
+
+            } else if ($R.time_elapsed >= max_time) {
+                el_prim.timer_id = $P.setTimeout(next, $R.GRANULARITY);
+                el_prim.timer_id_done = true;
+                $R.time_elapsed = max_time;
+            }
+        }());
+    };
+
+    // two styles of calling
+
+    $R.proto.expandFont = function (direction, max_time, big_size) {
+        return $R.expandFont.call(this, direction, max_time, big_size);
+    };
+
+    $P.expandFont = (function () {
+        return function (element, direction, max_time, big_size) {
+            var temp = [];
+            temp[0] = element;
+            $R.expandFont.call(temp, direction, max_time, big_size);
+        };
+    }());
+
+/******************************************************************************/
+
+    $R.proto.fade = function (direction, max_time, callback) {
+        var privates = {},
+            self = this;
+
+        // initialize
+
+        privates.elapsed = 0;
+        privates.GRANULARITY = 10;
+        if (privates.timer_id) {
+            win.clearInterval(privates.timer_id);
+        }
+
+        (function next() {
+            privates.elapsed += privates.GRANULARITY;
+            if (!privates.timer_id) {
+                privates.timer_id = win.setInterval(next, privates.GRANULARITY);
             }
             if (direction === 'up') {
                 $A.eachKey(self, function (val) {
-                    opacity = statics.elapsed / max_time;
-                    val.style.opacity = opacity;
+                    val.style.opacity = privates.elapsed / max_time;
                 });
 
             } else if (direction === 'down') {
                 $A.eachKey(self, function (val) {
-                    val.style.opacity = (max_time - statics.elapsed) / max_time;
+                    val.style.opacity = (max_time - privates.elapsed) / max_time;
                 });
             }
-            if (statics.elapsed >= max_time) {
+            if (privates.elapsed >= max_time) {
                 if (callback) {
                     callback();
                 }
-                win.clearInterval(statics.timeout_id);
+                win.clearInterval(privates.timer_id);
             }
         }());
     };
@@ -463,10 +585,6 @@ Algorithms ( compare to nczonline.net )
     };
 
 /******************************************************************************/
-
-    // createEvent
-
-    // "click" is one type of HTMLEvents
 
     $R.createEvent = function () {
         if (doc.createEvent) {
@@ -492,7 +610,7 @@ Algorithms ( compare to nczonline.net )
 
     // two styles of calling
 
-    $R.Constructor.prototype.createEvent = function (type) {
+    $R.proto.createEvent = function (type) {
         return $R.createEvent.call(this, type);
     };
 
@@ -528,7 +646,7 @@ Algorithms ( compare to nczonline.net )
 
     // two styles of calling
 
-    $R.Constructor.prototype.addEvent = function (type, callback) {
+    $R.proto.addEvent = function (type, callback) {
         return $R.addEvent.call(this, type, callback);
     };
 
@@ -544,7 +662,7 @@ Algorithms ( compare to nczonline.net )
 
     // removeEvent
 
-    $R.Constructor.prototype.removeEvent = (function () {
+    $R.proto.removeEvent = (function () {
         if (win.removeEventListener) {
             return function (type, callback) {
                 $A.eachKey(this, function (val) {
@@ -564,7 +682,7 @@ Algorithms ( compare to nczonline.net )
 
     // two styles of calling
 
-    $R.Constructor.prototype.removeEvent = function (type, callback) {
+    $R.proto.removeEvent = function (type, callback) {
         return $R.removeEvent.call(this, type, callback);
     };
 
@@ -575,13 +693,6 @@ Algorithms ( compare to nczonline.net )
             $R.removeEvent.call(temp, type, callback);
         };
     }());
-
-
-/******************************************************************************/
-
-    // clean version of undefined
-
-    $P.undef = undef;
 
 /******************************************************************************/
 
@@ -629,28 +740,6 @@ Algorithms ( compare to nczonline.net )
 
 /******************************************************************************/
 
-    // new types
-
-    $P.FormClass = (function () {
-        var publik = function (form_data) {
-            this.form_hold = form_data;
-            this.form = new win.FormData();
-            $A.eachKey(form_data, function (val, key) {
-                this.form.append(key, val);
-            });
-            return this;
-        };
-        publik.prototype.getFormData = function () {
-            return this.form_data;
-        };
-        publik.prototype.getForm = function () {
-            return this.form;
-        };
-        return publik;
-    }());
-
-/******************************************************************************/
-
     // new methods
 
     $P.el = function (selector) {
@@ -681,15 +770,25 @@ Algorithms ( compare to nczonline.net )
         return doc.getElementById(id.slice(1));
     };
 
-    // name is read only, used names
+    // name is read only, use names
 
     $P.names = function (name) {
         return doc.getElementsByName(name.slice(1));
     };
 
+/******************************************************************************/
+
     $P.removeElement = function (element) {
         element.parentNode.removeChild(element);
     };
+
+/******************************************************************************/
+
+    $P.insertAfter = function (newNode, refNode) {
+        refNode.parentNode.insertBefore(newNode, refNode.nextSibling);
+    };
+
+/******************************************************************************/
 
     $P.ajax = function (config_ajax) {
         var xhr;
@@ -968,6 +1067,8 @@ Algorithms ( compare to nczonline.net )
         }
     }());
 
+/******************************************************************************/
+
     // a basic registry pattern with get/set and getMany/setMany
 
     $P.Reg = (function () {
@@ -989,6 +1090,8 @@ Algorithms ( compare to nczonline.net )
         };
         return publik;
     }());
+
+/******************************************************************************/
 
     // a basic event system using an internal bus
 
@@ -1031,6 +1134,7 @@ Algorithms ( compare to nczonline.net )
 
 
 
+
 (function () {
 
     "use strict";
@@ -1039,9 +1143,13 @@ Algorithms ( compare to nczonline.net )
         $P = {},
         $R = {};
 
+    // holds boot configuration info.
+
     $R.config_boot = {};
 
     // requires utility, comms, and dom
+    // resources are loaded to the dom and their status is
+    // communicated to other modules
 
     (function manageGlobal() {
         if (window.$A && window.$A.molist && window.$A.molist.utility &&
@@ -1053,63 +1161,37 @@ Algorithms ( compare to nczonline.net )
         }
     }());
 
-    // parses a special text file used to consolidate 
-    // static resources to a .txt file
-    // text file has delimeters of the form "<!--|identifier_extension|-->"
-
 /******************************************************************************/
 
+    // parses .txt file w/ the form "<!--|identifier_extension|-->"
+
     $R.addElementText = function (callback, response_text) {
-
-        // parsing variables
-
         var regex,
             token_content,
             subtoken,
             subtoken_text,
             name,
             name_is_variable,
-
-        // looping variables
-
             index,
             length;
-
-        // broken up to shorten lines and make readable
-
-        // note use of asci for token identifier
-
         regex = /<!--<\|([\x20-\x7E]+)(_[\x20-\x7E]+)\|>-->/g;
-
         token_content = response_text.split(regex);
-
         length = token_content.length;
-
         for (index = 1; index < length; index += 3) {
-
-            // holds the token found in the super token
-
             subtoken = 'file_' + token_content[index] +
                     token_content[index + 1];
-
-            // holds the content found in the subtoken
-
             subtoken_text = token_content[index + 2];
-
-            // holds the name
-
             name = token_content[index];
 
-            // checks to see if the name is a variable
+            // handles variable based statics
 
             name_is_variable = name.match(/\{([\x20-\x7E]*)\}/);
-
             if (name_is_variable) {
                 if (name_is_variable[1] === $A.Reg.get('browser_type')) {
                     $R.addElement(subtoken, callback, subtoken_text);
                 }
 
-            // non-variable based
+            // straight statics
 
             } else {
                 $R.addElement(subtoken, callback, subtoken_text);
@@ -1117,10 +1199,10 @@ Algorithms ( compare to nczonline.net )
         }
     };
 
+/******************************************************************************/
+
     // dynamically adds resources to the dom
     // file token is of the form "file_identifier_extension"
-
-/******************************************************************************/
 
     $R.addElement = function (file_token, callback, response_text, source) {
         var file_type = file_token.match(/file_[\x20-\x7E]+_([\x20-x7E]+)$/)[1],
@@ -1443,22 +1525,22 @@ Algorithms ( compare to nczonline.net )
 
     // get dom elements for each module
 
-    $P.getElements = function (prop) {
+    $P.getDomElements = function (el_hold) {
         var list;
 
         // iterate through each module
 
         $A.eachKey($R.Parsel, function(val) {
-            list = val[prop];
+            list = val[el_hold];
             if (list) {
 
-                // iterate through the module property's properties
+                // iterate through each module's el_hold properties
 
                 $A.eachKey(list, function (val, key) {
 
-                    // replace the id w/ the element reference
+                    // replace the id w/ an element reference
 
-                    list[key] = $A.id(val);
+                    list[key] = $A.el(val);
                 });
             }
         });
@@ -1466,19 +1548,19 @@ Algorithms ( compare to nczonline.net )
 
     // get library elements for each module
 
-    $P.getLibElements = function (prop, lib) {
+    $P.getLibElements = function (lib_hold, lib_global) {
         var list;
 
         // iterate through each module
 
         $A.eachKey($R.Parsel, function(val) {
-            list = val[prop];
+            list = val[lib_hold];
             if (list) {
 
                 // iterate through the module property's properties
 
                 $A.eachKey(list, function (val, key) {
-                    list[key] = lib(val);
+                    list[key] = lib_global(val);
                 });
             }
         });
