@@ -66,7 +66,7 @@ Algorithms ( compare to nczonline.net )
 // allow access to the "dom"
 // allow block scoping in preparation for JavaScript Harmony
 // not all objects need filtering
-// ++ is OK instead of += 1
+// ++ is OK, use wisely
 
 
 /*jslint
@@ -163,14 +163,14 @@ Algorithms ( compare to nczonline.net )
 
     // ARRAY TYPE CHECKS
 
-    $P.isArray = isArrayNative || function (obj) {
-        return toString.call(obj) === '[object Array]';
-    };
-
     // + casts to a numeric type
 
     $P.isArrayAbstract = function (obj) {
         return obj.length === +obj.length;
+    };
+
+    $P.isArray = isArrayNative || function (obj) {
+        return toString.call(obj) === '[object Array]';
     };
 
     // OBJECT TYPE CHECKS
@@ -261,7 +261,7 @@ Algorithms ( compare to nczonline.net )
 
 /******************************************************************************/
 
-    // extend will over-write obj, accepts multiple arguments
+    // will not copy prototype chain, different from _ version
 
     $P.extend = function(obj) {
         $P.eachIndex(slice.call(arguments, 1), function(val) {
@@ -274,15 +274,15 @@ Algorithms ( compare to nczonline.net )
 
     // over-writing a key will throw an error
 
-    $P.extendSafe = function (o1, o2) {
+    $P.extendSafe = function (obj1, obj2) {
         var key;
-        for (key in o2) {
-            if (o2.hasOwnProperty(key) && o1.hasOwnProperty(key)) {
+        for (key in obj2) {
+            if (obj2.hasOwnProperty(key) && obj1.hasOwnProperty(key)) {
                 throw "naming collision: " + key;
             }
-            o1[key] = o2[key];
+            obj1[key] = obj2[key];
         }
-        return o1;
+        return obj1;
     };
 
     // clone is just extend applied to an object literal
@@ -381,6 +381,8 @@ Algorithms ( compare to nczonline.net )
     };
 
 /******************************************************************************/
+
+    // constructor for dom
 
     $R.Constructor = function (selector) {
         var type,
@@ -1789,66 +1791,63 @@ Algorithms ( compare to nczonline.net )
         arr[j] = temp;
     };
 
+    // repeatedly orders two items ( a bubble ) at a time
+
     $P.bubbleSort = function (arr) {
-        var i,
-            j,
-            length = arr.length,
-            swapped;
-        for (i = 0; i < length; i++) {
+        var index_outer,
+            index_inner,
+            swapped = false,
+            length = arr.length;
+        for (index_outer = 0; index_outer < length; index_outer++) {
             swapped = false;
-            for (j = 0; j < length - i; j++) {
-                if (arr[j] > arr[j + 1]) {
-                    $P.swap(arr, j, j + 1);
+            for (index_inner = 0; index_inner < length - index_outer; index_inner++) {
+                if (arr[index_inner] > arr[index_inner + 1]) {
+                    $P.swap(arr, index_inner, index_inner + 1);
                     swapped = true;
                 }
             }
-            if (!swapped) {
+            if (swapped === false) {
                 break;
             }
         }
         return arr;
     };
 
+    // repeatedly finds minimum and places it in correct spot
+
     $P.selectionSort = function (arr) {
-        var i,
-            j,
-            len = arr.length,
-            min;
-        for (i = 0; i < len; i++) {
-            min = i;
-            for (j = i + 1; j < len; j++) {
-                if (arr[j] < arr[min]) {
-                    min = j;
+        var index_outer,
+            index_inner,
+            index_min,
+            length = arr.length;
+        for (index_outer = 0; index_outer < length; index_outer++) {
+            index_min = index_outer;
+            for (index_inner = index_outer + 1; index_inner < length; index_inner++) {
+                if (arr[index_inner] < arr[index_min]) {
+                    index_min = index_inner;
                 }
             }
-            if (i !== min) {
-                $P.swap(arr, i, min);
+            if (index_outer !== index_min) {
+                $P.swap(arr, index_outer, index_min);
             }
         }
         return arr;
     };
 
+    // effectively shifted by over-writing elements
 
     $P.insertionSort = function (arr) {
-        var len = arr.length,
+        var index_outer,
+            index_inner,
             value,
-            i,
-            j;
-        for (i = 0; i < len; i++) {
-
-            // cache current element
-
-            value = arr[i];
-            for (j = i - 1; (j > -1 && (arr[j] > value)); j--) {
-
-                // shift the array by copying one over
-
-                arr[j + 1] = arr[j];
+            length = arr.length;
+        for (index_outer = 0; index_outer < length; index_outer++) {
+            value = arr[index_outer];
+            for (index_inner = index_outer - 1; (index_inner >= 0 && (arr[index_inner] > value));
+                    index_inner--) {
+               arr[index_inner + 1] = arr[index_inner];
             }
-
-            // insert the check value after shift
-
-            arr[j + 1] = value;
+            arr[index_inner + 1] = value;
         }
         return arr;
     };
