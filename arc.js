@@ -1018,8 +1018,7 @@ Algorithms ( compare to nczonline.net )
             'Number', 'Null', 'RegExp', 'String', 'Undefined'],
             function(val) {
                 if (type === val) {
-                    logger('LOG|Language Object|>');
-                    logger(obj);
+                    logger('LOG|Language Object|' + type + '> ' + obj);
                     completed = true;
                 }
             });
@@ -1588,58 +1587,34 @@ Algorithms ( compare to nczonline.net )
         $A.log($R.Parsel);
     };
 
-    $P.support = $P.parsel = function (o, config_module) {
-        var object_public;
+    $P.support = $P.parsel = function (obj, config_module) {
+        $R.Parsel[obj.Name] = obj;
 
-        $R.Parsel[o.Name] = o;
-
-        // all properties are private, i.e. nothing is returned
+        // all properties are private
 
         if (!config_module) {
-            return;
+            return undefined;
         }
 
         // all properties are public
 
         if (config_module === true) {
-            return o;
+            return obj;
         }
 
         // constructor based, all properties are publik
-        // static support available via "s_"
-        // private support available via "p_"
 
         if (config_module === 'constructor') {
-
-/******************************************************************************/
-
-            // add the constructor and then delete the temporary copy
-
-            if (o.constructor) {
-                object_public = o.constructor;
-                delete o.constructor;
+            if (obj.constructor) {
+                var object_public = obj.constructor;
+                delete obj.constructor;
             }
-
-            // loop through all remaining properties
-
-            $A.eachKey(o, function(val, key) {
-
+            $A.eachKey(obj, function(val, key) {
                 if (/^s_/.test(key)) {
-
-                    // s_ denotes a static property
-
                     object_public[key] = val;
-
                 } else if (/^p_/.test(key)) {
-
-                    // privacy not implemented yet
-
                     object_public.prototype[key] = val;
-
                 } else {
-
-                    // prototyped
-
                     object_public.prototype[key] = val;
                 }
 
@@ -1813,7 +1788,7 @@ Algorithms ( compare to nczonline.net )
         return arr;
     };
 
-    // repeatedly finds minimum and places it in correct spot
+    // repeatedly finds minimum and places it the next index
 
     $P.selectionSort = function (arr) {
         var index_outer,
@@ -1834,7 +1809,7 @@ Algorithms ( compare to nczonline.net )
         return arr;
     };
 
-    // effectively shifted by over-writing elements
+    // repeatedly places next item in correct spot using a "shift"
 
     $P.insertionSort = function (arr) {
         var index_outer,
