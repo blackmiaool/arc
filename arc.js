@@ -1605,8 +1605,8 @@ Algorithms ( compare to nczonline.net )
         // constructor based, all properties are publik
 
         if (config_module === 'constructor') {
+            var object_public = obj.constructor;
             if (obj.constructor) {
-                var object_public = obj.constructor;
                 delete obj.constructor;
             }
             $A.eachKey(obj, function(val, key) {
@@ -1820,7 +1820,7 @@ Algorithms ( compare to nczonline.net )
             value = arr[index_outer];
             for (index_inner = index_outer - 1; (index_inner >= 0 && (arr[index_inner] > value));
                     index_inner--) {
-               arr[index_inner + 1] = arr[index_inner];
+                arr[index_inner + 1] = arr[index_inner];
             }
             arr[index_inner + 1] = value;
         }
