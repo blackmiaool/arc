@@ -11,10 +11,11 @@ Arc ( consolidates 6 library types )
 
 Utility ( compare to underscore.js )
 
- - additional coverage - isObjectAbstract, isArrayAbstract, extendSafe
+ - additional coverage - isObjectAbstract, extendSafe, etc.
  - consistent naming convention
  - increased speed for looping idioms ( tested and eliminated native call )
  - positive asserting conditionals for increased efficiency
+
    ("drop-throughs")
 
 Dom ( compare to jquery.js )
@@ -140,7 +141,7 @@ Algorithms ( compare to nczonline.net )
         return obj === false;
     };
 
-    //detects null, undefined, good for preventing type errors
+    // detects null, undefined, good for preventing type errors
 
     $P.isGone = function (obj) {
         return obj == null;
@@ -149,7 +150,7 @@ Algorithms ( compare to nczonline.net )
     // detects null, undefined, NaN, '', 0, -0, false
 
     $P.isFasly = function (obj) {
-        return !!obj;
+        return !obj;
     };
 
 /******************************************************************************/
@@ -189,12 +190,6 @@ Algorithms ( compare to nczonline.net )
     };
 
     // ARRAY TYPE CHECKS
-
-    // + casts to a numeric type
-
-    $P.isArrayAbstract = function (obj) {
-        return (obj != null) && (obj.length === +obj.length);
-    };
 
     $P.isArray = isArrayNative || function (obj) {
         return toString.call(obj) === '[object Array]';
@@ -247,10 +242,10 @@ Algorithms ( compare to nczonline.net )
     };
 
     $P.eachIndex = function (arr, func, context) {
-        var index,
+        var index = 0,
             length = arr.length,
             result;
-        for (index = 0; index < length; index += 1) {
+        for (; index < length; index += 1) {
             result = func.call(context, arr[index], index, arr);
             if (result !== undefined) {
                 return result;
@@ -258,12 +253,12 @@ Algorithms ( compare to nczonline.net )
         }
     };
 
-    $P.each = function (abstraction, func, context) {
-        if ($P.isArrayAbstract(abstraction)) {
-            $P.eachIndex(abstraction, func, context);
+    $P.each = function (abst, func, context) {
+        if ((abst != null) && (abst.length === +abst.length)) {
+            $P.eachIndex(abst, func, context);
             return;
         }
-        $P.eachKey(abstraction, func, context);
+        $P.eachKey(abst, func, context);
     };
 
     $P.eachString = function (str, func, context) {
@@ -821,8 +816,8 @@ Algorithms ( compare to nczonline.net )
 
     // new methods
 
-    $P.el = function (selector) {
-        var type = selector.match(/^(@|#|\.)([\x20-\x7E]+)$/),
+    $P.el = function (selector_native) {
+        var type = selector_native.match(/^(@|#|\.)([\x20-\x7E]+)$/),
             type1 = type[1],
             type2 = type[2];
         if (!type) {
@@ -1155,6 +1150,41 @@ Algorithms ( compare to nczonline.net )
 
 /******************************************************************************/
 
+    $P.Debug = (function () {
+
+        var publik = {};
+
+        publik.boot = function () {
+            $A.boot(true);
+        };
+
+/*
+        publik.removeStyles = function () {
+            var styles = document.getElementsByTagName("style"),
+                i;
+            for (i = styles.length; i--; ) {
+               (styles[i]).parentNode.removeChild(styles[i]);
+            }
+        };
+
+        publik.removeScripts = function () {
+            var scripts = document.getElementsByTagName("script"),
+                i;
+            for (i = scripts.length; i--; ) {
+               (scripts[i]).parentNode.removeChild(scripts[i]);
+            }
+        };
+*/
+        publik.removeStorage = function () {
+            localStorage.clear();
+            sessionStorage.clear();
+        };
+
+        return publik;
+    }());
+
+/******************************************************************************/
+
     // a basic registry pattern with get/set and getMany/setMany
 
     $P.Reg = (function () {
@@ -1375,10 +1405,7 @@ Algorithms ( compare to nczonline.net )
 
 /******************************************************************************/
 
-    // parses the input to boot()
-    // accepts "//", "/" and "" prefixes for urls
-
-    $R.parseToken = function (source, callback) {
+    $R.parseResourceToken = function (source, callback) {
         var matches,
             prefix,
             file_token;
@@ -1388,15 +1415,10 @@ Algorithms ( compare to nczonline.net )
             file_token = 'file_' + matches[3] + '_' + matches[5];
             source = source + '?_time=' + new Date().getTime();
         }
-
-        // already cached, do not ajax in
-
         if ($R.config_boot.cached) {
             $R.addElement(file_token, callback, localStorage[file_token]);
             return;
         }
-
-        // no prefix or forward slash
 
         // relative to directory || relative to root
 
@@ -1405,22 +1427,11 @@ Algorithms ( compare to nczonline.net )
             // serialed ajax
 
             $A.serialAjax(source, function (response_text) {
-
-                // add the resource to the dom
-
                 $R.addElement(file_token, callback, response_text);
-
-                // save it in localStorage for later use
-
                 localStorage[file_token] = response_text;
-
             });
-
             return;
         }
-
-        // double forward slash, not implemented
-
         if (prefix === '//') {
             return;
         }
@@ -1428,35 +1439,31 @@ Algorithms ( compare to nczonline.net )
 
 /******************************************************************************/
 
-    // manages version using localStorage
-    // simple serial loading of resources
-    // check version number to see if cache is available, then load
-
-    $R.updateAndLoad = function () {
+    $R.checkStorage = function () {
         var kindex,
             length;
 
         // determine if a cached version of the static resources 
 
         if (localStorage.file_version && localStorage.file_version >=
-                $R.config_boot.version) {
+                $R.config_boot.file_version) {
             $R.config_boot.cached = true;
         } else {
-            localStorage.file_version = $R.config_boot.version;
+            localStorage.file_version = $R.config_boot.file_version;
             $R.config_boot.cached = false;
         }
         for (kindex = 0, length = $R.config_boot.resources.length;
                 kindex < length; kindex += 1) {
-            $R.parseToken($R.config_boot.resources[kindex], null);
+            $R.parseResourceToken($R.config_boot.resources[kindex], null);
         }
 
     };
 
-    // validate browser using version number
+/******************************************************************************/
 
     $P.validate = function (obj) {
         var name = 'unknown',
-            version = 'unknown',
+            browser_version = 'unknown',
             element,
             temp;
         $A.Reg.set('browser_type', null);
@@ -1465,16 +1472,16 @@ Algorithms ( compare to nczonline.net )
         if (/MSIE (\d+\.\d+);/.test(navigator.userAgent)) {
             $A.Reg.set('browser_type', 'ie');
             name = 'Internet Explorer';
-            version = parseFloat(RegExp.$1);
-            if (version >= obj.In) {
+            browser_version = parseFloat(RegExp.$1);
+            if (browser_version >= obj.In) {
                 $A.Reg.set('browser_validated', true);
                 return;
             }
         } else if (/Chrome[\/\s](\d+\.\d+)/.test(navigator.userAgent)) {
             $A.Reg.set('browser_type', 'ch');
             name = 'Chrome';
-            version = parseFloat(RegExp.$1);
-            if (version >= obj.Ch) {
+            browser_version = parseFloat(RegExp.$1);
+            if (browser_version >= obj.Ch) {
                 $A.Reg.set('browser_validated', true);
                 return;
             }
@@ -1482,8 +1489,8 @@ Algorithms ( compare to nczonline.net )
             $A.Reg.set('browser_type', 'sa');
             /Version[\/\s](\d+\.\d+)/.test(navigator.userAgent);
             name = 'Safari';
-            version = parseFloat(RegExp.$1);
-            if (version >= obj.Sa) {
+            browser_version = parseFloat(RegExp.$1);
+            if (browser_version >= obj.Sa) {
                 $A.Reg.set('browser_validated', true);
                 return;
             }
@@ -1491,15 +1498,16 @@ Algorithms ( compare to nczonline.net )
             $A.Reg.set('browser_type', 'ff');
             temp = navigator.userAgent.match(/Firefox[\/\s](\d+\.\d+)/);
             name = 'Firefox';
-            version = parseFloat(temp[1]);
-            if (version >= obj.Fi) {
+            browser_version = parseFloat(temp[1]);
+            if (browser_version >= obj.Fi) {
                 $A.Reg.set('browser_validated', true);
                 return;
             }
         }
 
         element = document.getElementById('browser_validation');
-        element.innerHTML += " You are running " + name + " " + version + ".";
+        element.innerHTML += " You are running " + name +
+            " " + browser_version + ".";
         element.style.display = 'block';
 
         $A.Reg.set('browser_validated', false);
@@ -1507,40 +1515,29 @@ Algorithms ( compare to nczonline.net )
 
     };
 
-    // configure the framework, mostly paths
-
     $P.config = function (func) {
         $R.config_boot.func = func;
     };
-
-    // set resources
 
     $P.setResources = function (obj) {
         $R.config_boot = $A.extend($R.config_boot, obj);
     };
 
-    $P.boot = function (skip) {
+    // validate, configure, check storage
 
-        var val = $A.Reg.get('browser_validated');
-
-        if (!skip && !val) {
+    $P.boot = function (skip_validation) {
+        var validated = $A.Reg.get('browser_validated');
+        if (!skip_validation && !validated) {
             return;
         }
-
-        if (!val) {
+        if (!validated) {
             var element = $A.Reg.get('browser_element');
             element.style.display = 'none';
         }
-
-        // run the configuration function
-
         if ($R.config_boot.func) {
             $R.config_boot.func();
         }
-
-        // boot the application
-
-        $R.updateAndLoad();
+        $R.checkStorage();
     };
 
     window.$A = $A.extendSafe($A, $P);
@@ -1768,7 +1765,7 @@ Algorithms ( compare to nczonline.net )
                             pipe.time.pre = times[0];
                             pipe.time.transit = times[1];
                             pipe.time.post = times[2];
-                            $P.Debug.setPipe(pipe);
+                            $P.DebugInternal.setPipe(pipe);
                         } else {
                             return;
                         }
@@ -1782,28 +1779,15 @@ Algorithms ( compare to nczonline.net )
 
     // holds the last pipe for debug
 
-    $P.Debug = (function () {
-
+    $P.DebugInternal = (function () {
         var hold = {},
             publik = {};
-
-        publik.boot = function () {
-            $A.boot(true);
-        };
-
-        publik.nuke = function () {
-            localStorage.clear();
-            sessionStorage.clear();
-        };
-
         publik.setPipe = function (pipe) {
             hold = pipe;
         };
-
         publik.getPipe = function () {
             $A.log(hold);
         };
-
         return publik;
     }());
 
