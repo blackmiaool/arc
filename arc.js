@@ -242,10 +242,10 @@ Algorithms ( compare to nczonline.net )
     };
 
     $P.eachIndex = function (arr, func, context) {
-        var index = 0,
-            length = arr.length,
+        var index,
+            length,
             result;
-        for (; index < length; index += 1) {
+        for (index = 0, length = arr.length; index < length; index += 1) {
             result = func.call(context, arr[index], index, arr);
             if (result !== undefined) {
                 return result;
@@ -1151,35 +1151,28 @@ Algorithms ( compare to nczonline.net )
 /******************************************************************************/
 
     $P.Debug = (function () {
-
         var publik = {};
-
         publik.boot = function () {
             $A.boot(true);
         };
-
-/*
         publik.removeStyles = function () {
             var styles = document.getElementsByTagName("style"),
                 i;
-            for (i = styles.length; i--; ) {
-               (styles[i]).parentNode.removeChild(styles[i]);
+            for (i = styles.length; i > 0; i--) {
+                (styles[i]).parentNode.removeChild(styles[i]);
             }
         };
-
         publik.removeScripts = function () {
             var scripts = document.getElementsByTagName("script"),
                 i;
-            for (i = scripts.length; i--; ) {
-               (scripts[i]).parentNode.removeChild(scripts[i]);
+            for (i = scripts.length; i > 0; i--) {
+                (scripts[i]).parentNode.removeChild(scripts[i]);
             }
         };
-*/
         publik.removeStorage = function () {
             localStorage.clear();
             sessionStorage.clear();
         };
-
         return publik;
     }());
 
@@ -1236,9 +1229,7 @@ Algorithms ( compare to nczonline.net )
         };
         return publik;
     }());
-
     window.$A = $A.extendSafe($A, $P);
-
 }());
 
 
@@ -1252,9 +1243,7 @@ Algorithms ( compare to nczonline.net )
 
 
 (function () {
-
     "use strict";
-
     var $A,
         $P = {},
         $R = {};
@@ -1708,40 +1697,33 @@ Algorithms ( compare to nczonline.net )
 
 /******************************************************************************/
 
-    // machine automates ajax using pre() and post()
+    // automates ajax using pre() and post()
 
     $P.machine = function (obj) {
-        var pipe,
+        var pipe = $A.makePipe(obj),
             data_send,
             ajax_type,
-            wait_animation,
-            set;
-        wait_animation = document.getElementById('wait_animation');
-        set = false;
-        pipe = $A.makePipe(obj);
-        if ($R.Parsel[pipe.model] === undefined) {
-            return;
-        }
-        time('start');
-        if ($R.Parsel[pipe.model].hasOwnProperty("pre")) {
+            wait_animation = document.getElementById('wait_animation');
+        if ($R.Parsel[pipe.model] && $R.Parsel[pipe.model].hasOwnProperty("pre")) {
+            time('start');
             pipe = $R.Parsel[pipe.model].pre(pipe);
+            time('middle');
+            $A.Reg.set('pipe_pre', pipe);
         } else {
             return;
-        }
-        if (pipe.form_data) {
-            ajax_type = 'multi';
-            var form_data = pipe.form_data;
-            delete pipe.form_data;
-            form_data.append("pipe", JSON.stringify(pipe));
-            data_send = form_data;
-        } else {
-            ajax_type = 'post';
-            data_send = 'pipe=' + encodeURIComponent(JSON.stringify(pipe));
         }
         if (pipe.state === true) {
-            time('middle');
+            if (pipe.form_data) {
+                var form_data = pipe.form_data;
+                ajax_type = 'multi';
+                delete pipe.form_data;
+                form_data.append("pipe", JSON.stringify(pipe));
+                data_send = form_data;
+            } else {
+                ajax_type = 'post';
+                data_send = 'pipe=' + encodeURIComponent(JSON.stringify(pipe));
+            }
             if (wait_animation) {
-                set = true;
                 wait_animation.style.opacity = 1;
             }
             $A.ajax({
@@ -1751,12 +1733,19 @@ Algorithms ( compare to nczonline.net )
                 callback: function (pipe_string_receive) {
                     var pass_prefix = pipe_string_receive.slice(0, 3),
                         times;
-                    if (wait_animation && set) {
+                    if (wait_animation) {
                         wait_animation.style.opacity = 0;
                     }
                     if (pass_prefix === '|D|') {
-                        $A.log('|DEBUG| ' + pipe_string_receive.slice(3));
-                    } else if (pass_prefix === '|A|') {
+                        //http://jsfiddle.net/Ke9CK/
+                        //http://stackoverflow.com/questions/1068280/javascript-regex-multiline-flag-doesnt-work
+                        var message = pipe_string_receive.match(/^(\|D\|)([\s\S]*)(\|A\|)/);
+                        $A.log('|D|');
+                        $A.log(message[2]);
+                        pipe_string_receive = pipe_string_receive.slice((message[1] + message[2]).length);
+                        pass_prefix = pipe_string_receive.slice(0, 3);
+                    }
+                    if (pass_prefix === '|A|') {
                         time('middle');
                         pipe = JSON.parse(pipe_string_receive.slice(3));
                         if ($R.Parsel[pipe.model].hasOwnProperty("post")) {
@@ -1765,7 +1754,7 @@ Algorithms ( compare to nczonline.net )
                             pipe.time.pre = times[0];
                             pipe.time.transit = times[1];
                             pipe.time.post = times[2];
-                            $P.DebugInternal.setPipe(pipe);
+                            $A.Reg.set('pipe_post', pipe);
                         } else {
                             return;
                         }
@@ -1776,20 +1765,6 @@ Algorithms ( compare to nczonline.net )
             });
         }
     };
-
-    // holds the last pipe for debug
-
-    $P.DebugInternal = (function () {
-        var hold = {},
-            publik = {};
-        publik.setPipe = function (pipe) {
-            hold = pipe;
-        };
-        publik.getPipe = function () {
-            $A.log(hold);
-        };
-        return publik;
-    }());
 
     // holds the pipe definition
 
