@@ -144,7 +144,7 @@ Algorithms (compare to nczonline.net)
 
     // detects null, undefined, NaN, '', 0, -0, false
 
-    $P.isFasly = function (obj) {
+    $P.isFalsy = function (obj) {
         return !obj;
     };
 
