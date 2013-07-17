@@ -178,6 +178,8 @@ Algorithms ( compare to nczonline.net )
     };
 
     // single window, fast
+    // http://stackoverflow.com/questions/332422/how-do-i-get-the-name-of-an-
+    // (cont)objects-type-in-javascript/332429#332429
 
     $P.isTypeFast = function (type, obj) {
         return $P.getTypeFast(obj) === type;
@@ -261,6 +263,8 @@ Algorithms ( compare to nczonline.net )
         $P.eachKey(abst, func, context);
     };
 
+    // http://jsfiddle.net/QPWsB/
+
     $P.eachString = function (str, func, context) {
         var classSplitter = /^|\s+/;
         if (classSplitter.test(str)) {
@@ -273,7 +277,7 @@ Algorithms ( compare to nczonline.net )
     // build 'is' functions
 
     $P.eachIndex(['Arguments', 'Function', 'String', 'Number',
-            'Date', 'RegExp', 'Object'], function (name) {
+        'Date', 'RegExp', 'Object'], function (name) {
         $P['is' + name] = function (obj) {
             return $P.isType(name, obj);
         };
