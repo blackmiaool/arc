@@ -1,53 +1,48 @@
 /*******************************************************************************
 
-Arc ( consolidates 6 library types )
+Arc
 
- - 80 character maximum width
- - passes jslint with options below
- - minifies w/ google closure
- - consolidates 6 library types - utility, dom, comms, booter, frame,
-   algorithms
+ - passes jslint, minifies with closure
+ - contains modules - utility, dom, comms, booter, frame,
+   algorithms ...
  - uses single global with safe extending
 
-Utility ( compare to underscore.js )
+Utility (compare to underscore, lodash)
 
- - additional coverage - isObjectAbstract, extendSafe, etc.
+ - additional coverage
  - consistent naming convention
- - increased speed for looping idioms ( tested and eliminated native call )
- - positive asserting conditionals for increased efficiency
+ - optimizations
 
-   ("drop-throughs")
+Dom (compare to jquery, jqueryui)
 
-Dom ( compare to jquery.js )
-
- - additional coverage - serializedAjax
- - integration w/ utilities for conciseness
+ - additional coverage
+ - integration w/ utilities
  - fewer function branches
  - consistent style
  - privacy
 
-Comms ( compare to backbone.js - events )
+Comms (compare to backbone)
 
- - provides registry and event system
- - reduces dependencies and "sub-globals"
+ - provides registry, event system, debugger ...
+ - reduces dependencies
 
-Booter ( compare to head.js - dom loading )
+Booter (compare to head)
 
  - serialized ajax guarantees ordering of resources /w out halting page
- - completely dynamic resource loads using dom appends
+ - dynamic resource loads using DOM appends
  - text blob allows consolidating static data into single request
  - revision control eliminates redundant downloads of static data
  - browser detection for targeted CSS , eliminates incorrect CSS delivery
  - browser detection to eliminate older browsers and reduce code base
 
-Frame
+Frame (N/A)
 
  - integrated ajax framework to eliminate redundant ajax code
  - consolidated model/ajax system which takes advantage of 
    JavaScript's dynamic objects
  - single point of troubleshooting and performance analysis
 
-Algorithms ( compare to nczonline.net )
+Algorithms (compare to nczonline.net)
 
  - provided for academic reasons only
  - native implementations are likely faster
@@ -69,7 +64,7 @@ Algorithms ( compare to nczonline.net )
 // allow block scoping in preparation for JavaScript Harmony
 // not all objects need filtering
 // ++ is OK, use wisely
-// == and != is OK, 
+// == and != is OK
 
 
 /*jslint
@@ -285,7 +280,7 @@ Algorithms ( compare to nczonline.net )
 
 /******************************************************************************/
 
-    // will not copy prototype chain, different from _ version
+    // will not copy prototype chain
 
     $P.extend = function (obj) {
         $P.eachIndex(slice.call(arguments, 1), function (val) {
