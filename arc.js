@@ -128,15 +128,20 @@ Algorithms (compare to nczonline.net)
 
 /******************************************************************************/
 
-    // VALUE TYPE CHECKS
-
-    // detects false
-
     $P.isFalse = function (obj) {
         return obj === false;
     };
 
-    // detects null, undefined, good for preventing type errors
+    $P.isUndefined = function (obj) {
+        var un;
+        return obj === un;
+    };
+
+    $P.isNull = function (obj) {
+        return obj === null;
+    };
+
+    // detects null, and undefined
 
     $P.isGone = function (obj) {
         return obj == null;
@@ -148,19 +153,24 @@ Algorithms (compare to nczonline.net)
         return !obj;
     };
 
-/******************************************************************************/
+    // handles `boxed` booleans as well
 
-    // ELEMENT CHECKS
-
-    // !! is a boolean cast as && does not return a boolean
-
-    $P.isElement = function (obj) {
-        return !!(obj && obj.nodeType === 1);
+    $P.isBoolean = function (obj) {
+        return obj === true || obj === false ||
+            toString.call(obj) === '[object Boolean]';
     };
 
 /******************************************************************************/
 
-    // TYPE CHECKS
+    $P.isArray = isArrayNative || function (obj) {
+        return toString.call(obj) === '[object Array]';
+    };
+
+    // jslint prefers {}.constructor(obj) over Object(obj)
+
+    $P.isObjectAbstract = function (obj) {
+        return obj && (obj === {}.constructor(obj));
+    };
 
     // multi-window, slow
 
@@ -186,35 +196,14 @@ Algorithms (compare to nczonline.net)
         }
     };
 
-    // ARRAY TYPE CHECKS
+/******************************************************************************/
 
-    $P.isArray = isArrayNative || function (obj) {
-        return toString.call(obj) === '[object Array]';
-    };
+    // ELEMENT CHECKS
 
-    // OBJECT TYPE CHECKS
+    // !! is a boolean cast as && does not return a boolean
 
-    // jslint prefers {}.constructor(obj) over Object(obj)
-
-    $P.isObjectAbstract = function (obj) {
-        return obj && (obj === {}.constructor(obj));
-    };
-
-    // SPECEFIC TYPE CHECKS
-
-    // handles `boxed` booleans as well
-
-    $P.isBoolean = function (obj) {
-        return obj === true || obj === false ||
-            toString.call(obj) === '[object Boolean]';
-    };
-
-    $P.isUndefined = function (obj) {
-        return obj === undef;
-    };
-
-    $P.isNull = function (obj) {
-        return obj === null;
+    $P.isElement = function (obj) {
+        return !!(obj && obj.nodeType === 1);
     };
 
 /******************************************************************************/
@@ -225,12 +214,12 @@ Algorithms (compare to nczonline.net)
 
     // LOOPING
 
-    $P.eachKey = function (obj, func, context) {
+    $P.eachKey = function (obj, func, con) {
         var key,
             result;
         for (key in obj) {
             if (obj.hasOwnProperty(key)) {
-                result = func.call(context, obj[key], key, obj);
+                result = func.call(con, obj[key], key, obj);
                 if (result !== undefined) {
                     return result;
                 }
@@ -250,20 +239,20 @@ Algorithms (compare to nczonline.net)
         }
     };
 
-    $P.each = function (abst, func, context) {
+    $P.each = function (abst, func, con) {
         if ((abst != null) && (abst.length === +abst.length)) {
-            $P.eachIndex(abst, func, context);
+            $P.eachIndex(abst, func, con);
             return;
         }
-        $P.eachKey(abst, func, context);
+        $P.eachKey(abst, func, con);
     };
 
     // http://jsfiddle.net/QPWsB/
 
-    $P.eachString = function (str, func, context) {
+    $P.eachString = function (str, func, con) {
         var classSplitter = /^|\s+/;
         if (classSplitter.test(str)) {
-            $P.eachIndex(str.split(classSplitter), func, context);
+            $P.eachIndex(str.split(classSplitter), func, con);
         }
     };
 
@@ -352,11 +341,11 @@ Algorithms (compare to nczonline.net)
 
     // loop through child elements
 
-    $P.eachChild = function (ref_el, func, context) {
+    $P.eachChild = function (ref_el, func, con) {
         var iter_el = ref_el.firstChild,
             result;
         do {
-            result = func.call(context, iter_el, ref_el);
+            result = func.call(con, iter_el, ref_el);
             if (result !== undefined) {
                 return result;
             }
