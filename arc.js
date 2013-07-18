@@ -105,11 +105,8 @@ Algorithms (compare to nczonline.net)
 
         slice = Array.prototype.slice,
         isArrayNative = Array.isArray,
-        toString = Object.prototype.toString;
-
-        // removed, performed poorly in jsperf
-
-        // nativeForEach = Array.prototype.forEach;
+        toString = Object.prototype.toString,
+        nativeForEach = Array.prototype.forEach;
 
     (function manageGlobal() {
         $P.previous = self.$A;
@@ -133,8 +130,7 @@ Algorithms (compare to nczonline.net)
     };
 
     $P.isUndefined = function (obj) {
-        var un;
-        return obj === un;
+        return obj === undef;
     };
 
     $P.isNull = function (obj) {
@@ -240,11 +236,16 @@ Algorithms (compare to nczonline.net)
     };
 
     $P.each = function (abst, func, con) {
-        if ((abst != null) && (abst.length === +abst.length)) {
-            $P.eachIndex(abst, func, con);
+        if (abst == null) {
             return;
         }
-        $P.eachKey(abst, func, con);
+        if (nativeForEach && abst.forEach === nativeForEach) {
+            abst.forEach(func, con);
+        } else if (abst.length === +abst.length) {
+            $P.eachIndex(abst, func, con);
+        } else {
+            $P.eachKey(abst, func, con);
+        }
     };
 
     // http://jsfiddle.net/QPWsB/
