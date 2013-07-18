@@ -9,17 +9,17 @@ Arc
 
 Utility (compare to underscore, lodash)
 
- - additional coverage
+ - additional coverage for looping and type checking
  - consistent naming convention
- - optimizations
+ - micro-optimizations
 
 Dom (compare to jquery, jqueryui)
 
- - additional coverage
+ - additional coverage for effects
  - integration w/ utilities
  - fewer function branches
- - consistent style
- - privacy
+ - consistent coding style
+ - privacy when possible
 
 Comms (compare to backbone)
 
@@ -32,8 +32,7 @@ Booter (compare to head)
  - dynamic resource loads using DOM appends
  - text blob allows consolidating static data into single request
  - revision control eliminates redundant downloads of static data
- - browser detection for targeted CSS , eliminates incorrect CSS delivery
- - browser detection to eliminate older browsers and reduce code base
+ - browser detection for targeted CSS and to reduce code base
 
 Frame (N/A)
 
