@@ -5,40 +5,39 @@ Arc
  - passes jslint, minifies with closure
  - contains modules - utility, dom, comms, booter, frame,
    algorithms ...
- - uses single global with safe extending
+ - uses single global with safe extending for each module
 
 Utility (compare to underscore, lodash)
 
- - additional coverage for looping and type checking
- - consistent naming convention
- - micro-optimizations
+ - additional coverage for looping, type checking, extending ...
+ - consistent ordering, naming conventions ...
+ - optimizations for looping ...
+ - fewer function branches
 
 Dom (compare to jquery, jqueryui)
 
- - additional coverage for effects
- - integration w/ utilities
+ - additional coverage for the dom
+ - consistent coding style ...
  - fewer function branches
- - consistent coding style
- - privacy when possible
 
-Comms (compare to backbone)
+Comms (N/A)
 
  - provides registry, event system, debugger ...
  - reduces dependencies
 
-Booter (compare to head)
+Booter (N/A)
 
- - serialized ajax guarantees ordering of resources /w out halting page
+ - asynchronous serialized ajax with ordered responses via caching
  - dynamic resource loads using DOM appends
- - text blob allows consolidating static data into single request
- - revision control eliminates redundant downloads of static data
+ - consolidates static data for single network requests
+ - client-side revision control eliminates redundant downloads of static data
  - browser detection for targeted CSS and to reduce code base
 
 Frame (N/A)
 
- - integrated ajax framework to eliminate redundant ajax code
+ - integrated ajax framework
  - consolidated model/ajax system which takes advantage of 
-   JavaScript's dynamic objects
+   JavaScript(s) dynamic objects
  - single point of troubleshooting and performance analysis
 
 Algorithms (compare to nczonline.net)
@@ -48,23 +47,27 @@ Algorithms (compare to nczonline.net)
 
 *******************************************************************************/
 
+/*******************************************************************************
 
+Performance, Fiddles, etc
 
+ - Based on top 4 browsers latest version (Chrome, Safari, FF, IE)
+ - some() - http://jsfiddle.net/az6NV/
 
-/*global
-    $A: true,
-    $: true
-*/
+*******************************************************************************/
 
-
-// jslint comments
-
-// allow access to the "dom"
+// jquery is not a dependency, this is for dynamic access if its used in
+// ... the application code
+// allow access to the DOM
 // allow block scoping in preparation for JavaScript Harmony
 // not all objects need filtering
 // ++ is OK, use wisely
 // == and != is OK
 
+/*global
+    $A: true,
+    $: true
+*/
 
 /*jslint
     browser: true,
@@ -75,54 +78,51 @@ Algorithms (compare to nczonline.net)
 */
 
 
-
-
 /*******************************************************************************
-**utility
+**UTILITY
 *******************************************************************************/
-
-
 
 
 (function (self, undef) {
 
     "use strict";
 
-        // global
-
     var $A = {},
-
-        // private
-
-        // $R = {},
-
-        // public
 
         $P = {},
 
-        // native methods
+        // native methods (alphabetical order)
 
-        slice = Array.prototype.slice,
-        isArrayNative = Array.isArray,
-        toString = Object.prototype.toString,
-        nativeForEach = Array.prototype.forEach;
+        nativeIsArray = Array.isArray,
+        nativeSlice = Array.prototype.slice,
+        nativeToString = Object.prototype.toString;
+
+/******************************************************************************/
+// GLOBAL MANAGEMENT
 
     (function manageGlobal() {
         $P.previous = self.$A;
-
-        // add utility and begin the module list (molist)
-
         $P.molist = {
             utility: true
         };
     }());
 
     $P.noConflict = function () {
+        var temp = self.$A;
         self.$A = $P.previous;
-        return self;
+        return temp;
     };
 
 /******************************************************************************/
+// TYPE CHECKS
+
+    $P.isType = function (type, obj) {
+        return $P.getType(obj) === type;
+    };
+
+    $P.getType = function (obj) {
+        return nativeToString.call(obj).slice(8, -1);
+    };
 
     $P.isFalse = function (obj) {
         return obj === false;
@@ -143,124 +143,84 @@ Algorithms (compare to nczonline.net)
     };
 
     // detects null, undefined, NaN, '', 0, -0, false
+    // note that if() will evaluate to truthy/falsy as well
 
     $P.isFalsy = function (obj) {
         return !obj;
     };
 
-    // handles `boxed` booleans as well
+    $P.isTruthy = function (obj) {
+        return !!obj;
+    };
 
     $P.isBoolean = function (obj) {
         return obj === true || obj === false ||
-            toString.call(obj) === '[object Boolean]';
+            nativeToString.call(obj) === '[object Boolean]';
     };
 
-/******************************************************************************/
-
-    $P.isArray = isArrayNative || function (obj) {
-        return toString.call(obj) === '[object Array]';
+    $P.isArray = nativeIsArray || function (obj) {
+        return nativeToString.call(obj) === '[object Array]';
     };
 
     // jslint prefers {}.constructor(obj) over Object(obj)
 
     $P.isObjectAbstract = function (obj) {
-        return obj && (obj === {}.constructor(obj));
+        return !!(obj && (obj === {}.constructor(obj)));
     };
 
-    // multi-window, slow
-
-    $P.isType = function (type, obj) {
-        return $P.getType(obj) === type;
+    $P.isArrayAbstract = function (obj) {
+        return !!(obj && obj.length === +obj.length);
     };
 
-    $P.getType = function (obj) {
-        return toString.call(obj).slice(8, -1);
+/******************************************************************************/
+// LOOPING
+
+    $P.nullFunc = function () {
+        return undefined;
     };
 
-    // single window, fast
-    // http://stackoverflow.com/questions/332422/how-do-i-get-the-name-of-an-
-    // (cont)objects-type-in-javascript/332429#332429
-
-    $P.isTypeFast = function (type, obj) {
-        return $P.getTypeFast(obj) === type;
-    };
-
-    $P.getTypeFast = function (obj) {
-        if (obj.constructor) {
-            return obj.constructor.name;
+    $P.someIndex = function (arr, func, con) {
+        if (!arr || !func) {
+            return false;
         }
+        if (arr.some) {
+            return arr.some(func, con);
+        }
+        var ind, len;
+        for (ind = 0, len = arr.length; ind < len; ind += 1) {
+            if (func.call(con, arr[ind], ind, arr)) {
+                return true;
+            }
+        }
+        return false;
     };
 
-/******************************************************************************/
-
-    // ELEMENT CHECKS
-
-    // !! is a boolean cast as && does not return a boolean
-
-    $P.isElement = function (obj) {
-        return !!(obj && obj.nodeType === 1);
-    };
-
-/******************************************************************************/
-
-    $P.undef = undef;
-
-/******************************************************************************/
-
-    // LOOPING
-
-    $P.eachKey = function (obj, func, con) {
-        var key,
-            result;
+    $P.someKey = function (obj, func, con) {
+        if (!obj || !func) {
+            return false;
+        }
+        var key;
         for (key in obj) {
             if (obj.hasOwnProperty(key)) {
-                result = func.call(con, obj[key], key, obj);
-                if (result !== undefined) {
-                    return result;
+                if (func.call(con, obj[key], key, obj)) {
+                    return true;
                 }
             }
         }
+        return false;
     };
-
-    $P.eachIndex = function (arr, func, context) {
-        var index,
-            length,
-            result;
-        for (index = 0, length = arr.length; index < length; index += 1) {
-            result = func.call(context, arr[index], index, arr);
-            if (result !== undefined) {
-                return result;
-            }
-        }
-    };
-
-    $P.each = function (abst, func, con) {
-        if (abst == null) {
-            return;
-        }
-        if (nativeForEach && abst.forEach === nativeForEach) {
-            abst.forEach(func, con);
-        } else if (abst.length === +abst.length) {
-            $P.eachIndex(abst, func, con);
-        } else {
-            $P.eachKey(abst, func, con);
-        }
-    };
-
-    // http://jsfiddle.net/QPWsB/
 
     $P.eachString = function (str, func, con) {
-        var classSplitter = /^|\s+/;
-        if (classSplitter.test(str)) {
-            $P.eachIndex(str.split(classSplitter), func, con);
+        var reg = /^|\s+/;
+        if (reg.test(str)) {
+            $P.someIndex(str.split(reg), func, con);
         }
     };
 
 /******************************************************************************/
+// BUILD FUNCTIONS
 
-    // build 'is' functions
-
-    $P.eachIndex(['Arguments', 'Function', 'String', 'Number',
+    $P.someIndex(['Arguments', 'Function', 'String', 'Number',
         'Date', 'RegExp', 'Object'], function (name) {
         $P['is' + name] = function (obj) {
             return $P.isType(name, obj);
@@ -268,19 +228,16 @@ Algorithms (compare to nczonline.net)
     });
 
 /******************************************************************************/
-
-    // will not copy prototype chain
+// GENERAL
 
     $P.extend = function (obj) {
-        $P.eachIndex(slice.call(arguments, 1), function (val) {
-            $P.eachKey(val, function (val_inner, key) {
+        $P.someIndex(nativeSlice.call(arguments, 1), function (val) {
+            $P.someKey(val, function (val_inner, key) {
                 obj[key] = val_inner;
             });
         });
         return obj;
     };
-
-    // over-writing a key will throw an error
 
     $P.extendSafe = function (obj1, obj2) {
         var key;
@@ -293,26 +250,18 @@ Algorithms (compare to nczonline.net)
         return obj1;
     };
 
-    // clone is just extend applied to an object literal
-
     $P.clone = function (obj) {
         return $P.extend({}, obj);
     };
-
-    // module complete
 
     self.$A = $P.extendSafe($P, $A);
 
 }(this));
 
 
-
-
 /*******************************************************************************
-**dom
+**DOM
 *******************************************************************************/
-
-
 
 
 (function (win, doc) {
@@ -338,8 +287,19 @@ Algorithms (compare to nczonline.net)
     }());
 
 /******************************************************************************/
+// GENERAL
 
-    // loop through child elements
+    $P.removeElement = function (element) {
+        element.parentNode.removeChild(element);
+    };
+
+    $P.insertAfter = function (newNode, refNode) {
+        refNode.parentNode.insertBefore(newNode, refNode.nextSibling);
+    };
+
+    $P.isElement = function (obj) {
+        return !!(obj && obj.nodeType === 1);
+    };
 
     $P.eachChild = function (ref_el, func, con) {
         var iter_el = ref_el.firstChild,
@@ -353,9 +313,36 @@ Algorithms (compare to nczonline.net)
         } while (iter_el !== null);
     };
 
-/******************************************************************************/
+    $P.HTMLToElement = function (html) {
+        var div = document.createElement('div');
+        div.innerHTML = html;
+        return div.firstChild;
+    };
 
-    // implements add/remove classes w/ special toggle feature
+    $P.getData = function (id) {
+        var data,
+            obj,
+            el;
+        el = document.getElementById(id);
+        obj = {};
+
+        if (el.dataset) {
+            $A.someKey(el.dataset, function (val, key) {
+                obj[key] = val;
+            });
+        } else {
+            data = [].filter.call(el.attributes, function (at) {
+                return (/^data-/).test(at.name);
+            });
+            $A.someIndex(data, function (val, i) {
+                obj[data[i].name.slice(5)] = val.value;
+            });
+        }
+        return obj;
+    };
+
+/******************************************************************************/
+// MANIPULATE CLASSNAME
 
     $R.hasClass = function (el, name) {
         return new RegExp('(\\s|^)' + name, 'g').test(el.className);
@@ -389,8 +376,7 @@ Algorithms (compare to nczonline.net)
     };
 
 /******************************************************************************/
-
-    // constructor for dom
+// CONSTRUCTOR
 
     $R.Constructor = function (selector) {
         var type,
@@ -399,7 +385,13 @@ Algorithms (compare to nczonline.net)
             temp,
             obj_type;
 
-        // window object detected, single window apps only
+        // $A object detected
+
+        if (selector instanceof $R.Constructor) {
+            return selector;
+        }
+
+        // window object detected
 
         if (selector === win) {
             this[0] = selector;
@@ -415,7 +407,7 @@ Algorithms (compare to nczonline.net)
 
         // element object detected
 
-        if ($A.isElement(selector)) {
+        if ($P.isElement(selector)) {
             this[0] = selector;
             return this;
         }
@@ -457,7 +449,7 @@ Algorithms (compare to nczonline.net)
             if (!temp) {
                 return this;
             }
-            $A.eachIndex(temp, function (val, index) {
+            $A.someIndex(temp, function (val, index) {
                 this[index] = val;
             }, this);
             return this;
@@ -470,20 +462,17 @@ Algorithms (compare to nczonline.net)
             if (!temp) {
                 return this;
             }
-            $A.eachIndex(temp, function (val, index) {
+            $A.someIndex(temp, function (val, index) {
                 this[index] = val;
             }, this);
             return this;
         }
     };
 
-/******************************************************************************/
-
     $R.proto = $R.Constructor.prototype;
 
 /******************************************************************************/
-
-/******************************************************************************/
+// EFFECTS
 
     $R.proto.fade = function (direction, max_time, callback) {
         var privates = {},
@@ -503,12 +492,12 @@ Algorithms (compare to nczonline.net)
                 privates.timer_id = win.setInterval(next, privates.GRANULARITY);
             }
             if (direction === 'up') {
-                $A.eachKey(self, function (val) {
+                $A.someKey(self, function (val) {
                     val.style.opacity = privates.elapsed / max_time;
                 });
 
             } else if (direction === 'down') {
-                $A.eachKey(self, function (val) {
+                $A.someKey(self, function (val) {
                     val.style.opacity = (max_time - privates.elapsed) / max_time;
                 });
             }
@@ -571,8 +560,6 @@ Algorithms (compare to nczonline.net)
         privates.id = 0;
     };
 
-/******************************************************************************/
-
     $R.expandFont = function (direction, max_time) {
 
         // initialize 'this'
@@ -592,7 +579,7 @@ Algorithms (compare to nczonline.net)
         $R.GRANULARITY = 10;
         $R.time_elapsed = 0;
         (function next() {
-            $A.eachKey(self, function (val) {
+            $A.someKey(self, function (val) {
                 if (direction === 'up') {
                     val.style.fontSize = (($R.time_elapsed / max_time) *
                             $R.final_size) + 'px';
@@ -626,8 +613,6 @@ Algorithms (compare to nczonline.net)
         }());
     };
 
-    // two styles of calling
-
     $R.proto.expandFont = function (direction, max_time, big_size) {
         return $R.expandFont.call(this, direction, max_time, big_size);
     };
@@ -641,19 +626,20 @@ Algorithms (compare to nczonline.net)
     }());
 
 /******************************************************************************/
+// EVENTS
 
     $R.functionNull = function () {
         return undefined;
     };
 
-/******************************************************************************/
+    // createEvent
 
     $R.createEvent = function () {
         if (doc.createEvent) {
             return function (type) {
                 var event = doc.createEvent("HTMLEvents");
                 event.initEvent(type, true, false);
-                $A.eachKey(this, function (val) {
+                $A.someKey(this, function (val) {
                     val.dispatchEvent(event);
                 });
             };
@@ -662,15 +648,13 @@ Algorithms (compare to nczonline.net)
             return function (type) {
                 var event = doc.createEventObject();
                 event.eventType = type;
-                $A.eachKey(this, function (val) {
+                $A.someKey(this, function (val) {
                     val.fireEvent('on' + type, event);
                 });
             };
         }
         return $R.functionNull;
     };
-
-    // two styles of calling
 
     $R.proto.createEvent = function (type) {
         return $R.createEvent.call(this, type);
@@ -684,29 +668,25 @@ Algorithms (compare to nczonline.net)
         };
     }());
 
-/******************************************************************************/
-
     // addEvent
 
     $R.addEvent = (function () {
         if (win.addEventListener) {
             return function (type, callback) {
-                $A.eachKey(this, function (val) {
+                $A.someKey(this, function (val) {
                     val.addEventListener(type, callback);
                 });
             };
         }
         if (win.attachEvent) {
             return function (type, callback) {
-                $A.eachKey(this, function (val) {
+                $A.someKey(this, function (val) {
                     val.attachEvent('on' + type, callback);
                 });
             };
         }
         return $R.functionNull;
     }());
-
-    // two styles of calling
 
     $R.proto.addEvent = function (type, callback) {
         return $R.addEvent.call(this, type, callback);
@@ -720,29 +700,25 @@ Algorithms (compare to nczonline.net)
         };
     }());
 
-/******************************************************************************/
-
     // removeEvent
 
     $R.proto.removeEvent = (function () {
         if (win.removeEventListener) {
             return function (type, callback) {
-                $A.eachKey(this, function (val) {
+                $A.someKey(this, function (val) {
                     val.removeEventListener(type, callback);
                 });
             };
         }
         if (win.detachEvent) {
             return function (type, callback) {
-                $A.eachKey(this, function (val) {
+                $A.someKey(this, function (val) {
                     val.detachEvent('on' + type, callback);
                 });
             };
         }
         return $R.functionNull;
     }());
-
-    // two styles of calling
 
     $R.proto.removeEvent = function (type, callback) {
         return $R.removeEvent.call(this, type, callback);
@@ -757,100 +733,7 @@ Algorithms (compare to nczonline.net)
     }());
 
 /******************************************************************************/
-
-    // methods
-
-    $P.getComputedStyle = function (arg1, arg2) {
-        return win.getComputedStyle(arg1, arg2);
-    };
-
-    $P.clearTimeout = function (arg1) {
-        return win.clearTimeout(arg1);
-    };
-
-    $P.setTimeout = function (arg1, arg2) {
-        return win.setTimeout(arg1, arg2);
-    };
-
-    $P.createDocumentFragment = function () {
-        return doc.createDocumentFragment();
-    };
-
-    $P.createElement = function (arg1) {
-        return doc.createElement(arg1);
-    };
-
-    $P.setInterval = function (arg1, arg2) {
-        return win.setInterval(arg1, arg2);
-    };
-
-    $P.clearInterval = function (arg1) {
-        return win.clearInterval(arg1);
-    };
-
-    // objects
-
-    $P.indexedDB = win.indexedDB || win.mozIndexedDB || win.webKitIndexedDB;
-
-    $P.FormData = win.FormData;
-
-    $P.FileReader = win.FileReader;
-
-    $P.localStorage = localStorage;
-
-    $P.sessionStorage = sessionStorage;
-
-/******************************************************************************/
-
-    // new methods
-
-    $P.el = function (selector_native) {
-        var type = selector_native.match(/^(@|#|\.)([\x20-\x7E]+)$/),
-            type1 = type[1],
-            type2 = type[2];
-        if (!type) {
-            return;
-        }
-        if (type1 === '#') {
-            return doc.getElementById(type2);
-        }
-        if (type1 === '.' && doc.getElementsByClassName) {
-            return doc.getElementsByClassName(type2);
-        }
-        if (type1 === '@') {
-            return doc.getElementsByName(type2);
-        }
-    };
-
-    // class is a future reserved word
-
-    $P.klass = function (klass) {
-        return doc.getElementsByClassName(klass.slice(1));
-    };
-
-    $P.id = function (id) {
-        return doc.getElementById(id.slice(1));
-    };
-
-    // name is read only, use names
-
-    $P.names = function (name) {
-        return doc.getElementsByName(name.slice(1));
-    };
-
-/******************************************************************************/
-
-    $P.removeElement = function (element) {
-        element.parentNode.removeChild(element);
-    };
-
-/******************************************************************************/
-
-    $P.insertAfter = function (newNode, refNode) {
-        refNode.parentNode.insertBefore(newNode, refNode.nextSibling);
-    };
-
-/******************************************************************************/
+// AJAX
 
     $P.ajax = function (config_ajax) {
         var xhr;
@@ -887,7 +770,7 @@ Algorithms (compare to nczonline.net)
             xhr.send(config_ajax.data);
         }
 
-        // handles FormData
+        // post for form_data
 
         if (config_ajax.type === 'multi') {
             xhr = new win.XMLHttpRequest();
@@ -904,17 +787,12 @@ Algorithms (compare to nczonline.net)
 
     };
 
-
-/******************************************************************************/
-
-    //Queue
-
     $R.Queue = (function () {
         var queue = [],
             publik = {};
         function getIndexFromToken(callback) {
             var hold;
-            $A.eachIndex(queue, function (val, index) {
+            $A.someIndex(queue, function (val, index) {
                 if (val.callback === callback) {
                     hold = index;
                     return index;
@@ -931,9 +809,6 @@ Algorithms (compare to nczonline.net)
             }
             return blocked;
         }
-
-        // an item can not be blocked until its request has completed
-
         publik.addItem = function (callback) {
             var temp = {};
             temp.blocked = false;
@@ -946,10 +821,6 @@ Algorithms (compare to nczonline.net)
                 item,
                 blocked;
             index = getIndexFromToken(callback);
-
-            // if not item 0 , the item is blocked, as items before it
-            // have not completed, save response_text
-
             if (index !== 0) {
                 queue[index].blocked = true;
                 queue[index].response_text = response_text;
@@ -979,40 +850,82 @@ Algorithms (compare to nczonline.net)
     };
 
 /******************************************************************************/
+// WRAPS
 
-    $P.HTMLToElement = function (html) {
-        var div = document.createElement('div');
-        div.innerHTML = html;
-        return div.firstChild;
+    $P.getComputedStyle = function (arg1, arg2) {
+        return win.getComputedStyle(arg1, arg2);
     };
 
-/******************************************************************************/
+    $P.clearTimeout = function (arg1) {
+        return win.clearTimeout(arg1);
+    };
 
-    $P.getData = function (id) {
-        var data,
-            obj,
-            el;
-        el = document.getElementById(id);
-        obj = {};
+    $P.setTimeout = function (arg1, arg2) {
+        return win.setTimeout(arg1, arg2);
+    };
 
-        if (el.dataset) {
-            $A.eachKey(el.dataset, function (val, key) {
-                obj[key] = val;
-            });
-        } else {
-            data = [].filter.call(el.attributes, function (at) {
-                return (/^data-/).test(at.name);
-            });
-            $A.eachIndex(data, function (val, i) {
-                obj[data[i].name.slice(5)] = val.value;
-            });
+    $P.createDocumentFragment = function () {
+        return doc.createDocumentFragment();
+    };
+
+    $P.createElement = function (arg1) {
+        return doc.createElement(arg1);
+    };
+
+    $P.setInterval = function (arg1, arg2) {
+        return win.setInterval(arg1, arg2);
+    };
+
+    $P.clearInterval = function (arg1) {
+        return win.clearInterval(arg1);
+    };
+
+    $P.indexedDB = win.indexedDB || win.mozIndexedDB || win.webKitIndexedDB;
+
+    $P.FormData = win.FormData;
+
+    $P.FileReader = win.FileReader;
+
+    $P.localStorage = localStorage;
+
+    $P.sessionStorage = sessionStorage;
+
+    $P.el = function (selector_native) {
+        var type = selector_native.match(/^(@|#|\.)([\x20-\x7E]+)$/),
+            type1 = type[1],
+            type2 = type[2];
+        if (!type) {
+            return;
         }
-        return obj;
+        if (type1 === '#') {
+            return doc.getElementById(type2);
+        }
+        if (type1 === '.' && doc.getElementsByClassName) {
+            return doc.getElementsByClassName(type2);
+        }
+        if (type1 === '@') {
+            return doc.getElementsByName(type2);
+        }
+    };
+
+    // class is reserved
+
+    $P.klass = function (klass) {
+        return doc.getElementsByClassName(klass.slice(1));
+    };
+
+    $P.id = function (id) {
+        return doc.getElementById(id.slice(1));
+    };
+
+    // name is read only
+
+    $P.names = function (name) {
+        return doc.getElementsByName(name.slice(1));
     };
 
 /******************************************************************************/
-
-    // log
+// LOG
 
     $P.log = function (obj) {
         var logger,
@@ -1020,7 +933,8 @@ Algorithms (compare to nczonline.net)
             temp,
             completed;
 
-        // wrap win.console to protect from IE bug
+        // wrap win.console to protect from IE
+        // bind to satisfy Safari
 
         if (win.console) {
             logger = win.console.log.bind(win.console);
@@ -1028,7 +942,7 @@ Algorithms (compare to nczonline.net)
             return;
         }
 
-        // get and validate type of obj
+        // validation
 
         type = $A.getType(obj);
         if (!type) {
@@ -1036,31 +950,25 @@ Algorithms (compare to nczonline.net)
             return;
         }
 
-/******************************************************************************/
-
-        // browser objects, just a place holder
+        // browser objects, event ...
 
         if (type === 'Event') {
-            logger('LOG|host object|>');
+            logger('LOG|host|event>');
             logger(obj);
             return;
         }
-
-/******************************************************************************/
 
         // library objects
 
         if (win.jQuery && (obj instanceof win.jQuery)) {
-            logger('LOG|jQuery object|>');
+            logger('LOG|library|jquery>');
             logger(obj);
             return;
         }
 
-/******************************************************************************/
-
         // language objects
 
-        $A.eachIndex(['Arguments', 'Array', 'Object'], function (val) {
+        $A.someIndex(['Arguments', 'Array', 'Object'], function (val) {
             if (type === val) {
                 try {
                     temp = JSON.stringify(obj, null, 1);
@@ -1068,11 +976,11 @@ Algorithms (compare to nczonline.net)
                     temp = false;
                 }
                 if (temp) {
-                    logger('LOG|Language Object|>');
-                    logger("LOG|" + val + "|> " + temp);
+                    logger('LOG|language|' + type + '>');
+                    logger(temp);
                 } else {
-                    logger('LOG|Language Object|>');
-                    logger("LOG|" + val + "|> " + obj);
+                    logger('LOG|language|' + type + '>');
+                    logger(obj);
                 }
                 completed = true;
             }
@@ -1082,11 +990,12 @@ Algorithms (compare to nczonline.net)
             return;
         }
 
-        $A.eachIndex(['Boolean', 'Date', 'Error', 'Function', 'JSON', 'Math',
+        $A.someIndex(['Boolean', 'Date', 'Error', 'Function', 'JSON', 'Math',
             'Number', 'Null', 'RegExp', 'String', 'Undefined'],
             function (val) {
                 if (type === val) {
-                    logger('LOG|Language Object|' + type + '> ' + obj);
+                    logger('LOG|language|' + type + '>');
+                    logger(obj);
                     completed = true;
                 }
             });
@@ -1095,9 +1004,9 @@ Algorithms (compare to nczonline.net)
             return;
         }
 
-        // catch remaining
+        // remaining
 
-        logger('LOG|Not Implmented|>');
+        logger('LOG|not_implemented|>');
         logger(obj);
         return;
 
@@ -1108,14 +1017,9 @@ Algorithms (compare to nczonline.net)
 }(window, window.document));
 
 
-
-
-
 /*******************************************************************************
-**comms
+**COMS
 *******************************************************************************/
-
-
 
 
 (function () {
@@ -1178,7 +1082,7 @@ Algorithms (compare to nczonline.net)
             register[key] = value;
         };
         publik.setMany = function (o) {
-            $A.eachKey(o, function (val, key) {
+            $A.someKey(o, function (val, key) {
                 register[key] = val;
             });
         };
@@ -1210,7 +1114,7 @@ Algorithms (compare to nczonline.net)
         };
         publik.trigger = function (name) {
             if (events[name]) {
-                $A.eachIndex(events[name], function (val) {
+                $A.someIndex(events[name], function (val) {
                     val();
                 });
             }
@@ -1224,7 +1128,7 @@ Algorithms (compare to nczonline.net)
 
 
 /*******************************************************************************
-**booter
+**BOOTER
 *******************************************************************************/
 
 
@@ -1523,7 +1427,7 @@ Algorithms (compare to nczonline.net)
 
 
 /*******************************************************************************
-**frame
+**FRAME
 *******************************************************************************/
 
 
@@ -1590,13 +1494,13 @@ Algorithms (compare to nczonline.net)
 
         // iterate through each module
 
-        $A.eachKey($R.Parsel, function (val) {
+        $A.someKey($R.Parsel, function (val) {
             list = val[el_hold];
             if (list) {
 
                 // iterate through each module's el_hold properties
 
-                $A.eachKey(list, function (val, key) {
+                $A.someKey(list, function (val, key) {
 
                     // replace the id w/ an element reference
 
@@ -1613,13 +1517,13 @@ Algorithms (compare to nczonline.net)
 
         // iterate through each module
 
-        $A.eachKey($R.Parsel, function (val) {
+        $A.someKey($R.Parsel, function (val) {
             list = val[lib_hold];
             if (list) {
 
                 // iterate through the module property's properties
 
-                $A.eachKey(list, function (val, key) {
+                $A.someKey(list, function (val, key) {
                     list[key] = lib_global(val);
                 });
             }
@@ -1632,7 +1536,7 @@ Algorithms (compare to nczonline.net)
 
         // iterate through each module
 
-        $A.eachKey($R.Parsel, function (val) {
+        $A.someKey($R.Parsel, function (val) {
 
             // if the property exists execute it
 
@@ -1669,7 +1573,7 @@ Algorithms (compare to nczonline.net)
                 object_public = obj.constructor;
                 delete obj.constructor;
             }
-            $A.eachKey(obj, function (val, key) {
+            $A.someKey(obj, function (val, key) {
                 if (/^s_/.test(key)) {
                     object_public[key] = val;
                 } else if (/^p_/.test(key)) {
@@ -1772,7 +1676,7 @@ Algorithms (compare to nczonline.net)
 
 
 /*******************************************************************************
-**algorithms
+**ALGORITHMS
 *******************************************************************************/
 
 
