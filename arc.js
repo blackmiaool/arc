@@ -1,8 +1,8 @@
 /*******************************************************************************
 
-Arc
+Arc.js
 
- - passes jslint, minifies with closure
+ - passes crockford's jslint, minifies with google's closure
  - contains modules - utility, dom, comms, booter, frame,
    algorithms ...
  - uses single global with safe extending for each module
@@ -11,8 +11,8 @@ Utility (compare to underscore, lodash)
 
  - additional coverage for looping, type checking, extending ...
  - consistent ordering, naming conventions ...
- - optimizations for looping ...
  - fewer function branches
+ - privacy
 
 Dom (compare to jquery, jqueryui)
 
@@ -47,78 +47,75 @@ Algorithms (compare to nczonline.net)
 
 *******************************************************************************/
 
-/*******************************************************************************
-
-Performance, Fiddles, etc
-
- - Based on top 4 browsers latest version (Chrome, Safari, FF, IE)
- - some() - http://jsfiddle.net/az6NV/
-
-*******************************************************************************/
-
-// jquery is not a dependency, this is for dynamic access if its used in
-// ... the application code
-// allow access to the DOM
-// allow block scoping in preparation for JavaScript Harmony
-// not all objects need filtering
-// ++ is OK, use wisely
-// == and != is OK
-
-/*global
-    $A: true,
-    $: true
-*/
+// browser:   allow access to the DOM
+// vars:      allow block scoping in preparation for JavaScript Harmony
+// forin:     not all objects need prototype filtering
+// plusplus:  ++ is OK, use wisely
+// eqeq:      == and != is OK
+// ass:       var foo = moo = who is O.K. ( not ass )
 
 /*jslint
     browser: true,
     vars: true,
     forin: true,
     plusplus: true,
-    eqeq: true
+    eqeq: true,
+    ass: true
 */
-
 
 /*******************************************************************************
 **UTILITY
 *******************************************************************************/
 
-
 (function (self, undef) {
 
     "use strict";
 
-    var $A = {},
+    // holds (P)ublic properties
 
-        $P = {},
+    var $P = {},
+
+    // holds p(R)ivate properties
+
+        $R = {},
 
         // native methods (alphabetical order)
 
+        nativeFilter = Array.prototype.filter,
         nativeIsArray = Array.isArray,
         nativeSlice = Array.prototype.slice,
+        nativeSome = Array.prototype.some,
         nativeToString = Object.prototype.toString;
 
 /******************************************************************************/
 // GLOBAL MANAGEMENT
 
-    (function manageGlobal() {
-        $P.previous = self.$A;
+    $P.noConflict = (function () {
+
+        // set single global
+
+        $R.global = '$A';
+        $R.previous = self[$R.global];
         $P.molist = {
             utility: true
         };
+        return function () {
+            var temp = self[$R.global];
+            self[$R.global] = $R.previous;
+            return temp;
+        };
     }());
-
-    $P.noConflict = function () {
-        var temp = self.$A;
-        self.$A = $P.previous;
-        return temp;
-    };
 
 /******************************************************************************/
 // TYPE CHECKS
 
+    // returns boolean
+
     $P.isType = function (type, obj) {
         return $P.getType(obj) === type;
     };
+
+    // returns type in string form an capitalized
 
     $P.getType = function (obj) {
         return nativeToString.call(obj).slice(8, -1);
@@ -143,30 +140,38 @@ Performance, Fiddles, etc
     };
 
     // detects null, undefined, NaN, '', 0, -0, false
-    // note that if() will evaluate to truthy/falsy as well
 
     $P.isFalsy = function (obj) {
         return !obj;
     };
 
+    // detects opposite of isFalsy
+
     $P.isTruthy = function (obj) {
         return !!obj;
     };
+
+    // shortcut as their are only two primitive boolean values
 
     $P.isBoolean = function (obj) {
         return obj === true || obj === false ||
             nativeToString.call(obj) === '[object Boolean]';
     };
 
+    // delegates to native
+
     $P.isArray = nativeIsArray || function (obj) {
         return nativeToString.call(obj) === '[object Array]';
     };
 
     // jslint prefers {}.constructor(obj) over Object(obj)
+    // returns boolean
 
     $P.isObjectAbstract = function (obj) {
         return !!(obj && (obj === {}.constructor(obj)));
     };
+
+    // returns boolean
 
     $P.isArrayAbstract = function (obj) {
         return !!(obj && obj.length === +obj.length);
@@ -175,18 +180,14 @@ Performance, Fiddles, etc
 /******************************************************************************/
 // LOOPING
 
-    $P.nullFunc = function () {
-        return undefined;
-    };
-
     $P.someIndex = function (arr, func, con) {
-        if (!arr || !func) {
+        var ind, len;
+        if (!arr || typeof func !== 'function') {
             return false;
         }
-        if (arr.some) {
+        if (nativeSome && arr.some === nativeSome) {
             return arr.some(func, con);
         }
-        var ind, len;
         for (ind = 0, len = arr.length; ind < len; ind += 1) {
             if (func.call(con, arr[ind], ind, arr)) {
                 return true;
@@ -196,10 +197,10 @@ Performance, Fiddles, etc
     };
 
     $P.someKey = function (obj, func, con) {
-        if (!obj || !func) {
+        var key;
+        if (!obj || typeof func !== 'function') {
             return false;
         }
-        var key;
         for (key in obj) {
             if (obj.hasOwnProperty(key)) {
                 if (func.call(con, obj[key], key, obj)) {
@@ -211,24 +212,11 @@ Performance, Fiddles, etc
     };
 
     $P.eachString = function (str, func, con) {
-        var reg = /^|\s+/;
-        if (reg.test(str)) {
-            $P.someIndex(str.split(reg), func, con);
+        var regexp = /^|\s+/;
+        if (regexp.test(str)) {
+            $P.someIndex(str.split(regexp), func, con);
         }
     };
-
-/******************************************************************************/
-// BUILD FUNCTIONS
-
-    $P.someIndex(['Arguments', 'Function', 'String', 'Number',
-        'Date', 'RegExp', 'Object'], function (name) {
-        $P['is' + name] = function (obj) {
-            return $P.isType(name, obj);
-        };
-    });
-
-/******************************************************************************/
-// GENERAL
 
     $P.extend = function (obj) {
         $P.someIndex(nativeSlice.call(arguments, 1), function (val) {
@@ -237,6 +225,19 @@ Performance, Fiddles, etc
             });
         });
         return obj;
+    };
+
+/******************************************************************************/
+// LOOPING RELATED
+
+    $P.filter = function (arr, func, con) {
+        if (!arr || typeof func !== 'function') {
+            return false;
+        }
+        if (nativeFilter && arr.filter === nativeFilter) {
+            return arr.filter(func, con);
+        }
+        return false;
     };
 
     $P.extendSafe = function (obj1, obj2) {
@@ -254,7 +255,20 @@ Performance, Fiddles, etc
         return $P.extend({}, obj);
     };
 
-    self.$A = $P.extendSafe($P, $A);
+/******************************************************************************/
+// BUILD 'is' type methods
+
+    $P.someIndex(['Arguments', 'Function', 'String', 'Number',
+        'Date', 'RegExp', 'Object'], function (val) {
+        $P['is' + val] = function (obj) {
+            return $P.isType(name, obj);
+        };
+    });
+
+/******************************************************************************/
+// GENERAL
+
+    self[$R.global] = $P.extendSafe($P, {});
 
 }(this));
 
@@ -278,8 +292,8 @@ Performance, Fiddles, etc
 
         // requires utility
 
-        if (win.$A && window.$A.molist && win.$A.molist.utility) {
-            $A = window.$A;
+        if (win.$A && win.$A.molist && win.$A.molist.utility) {
+            $A = win.$A;
             $A.molist.dom = true;
         } else {
             throw "dom requires utility module";
@@ -287,19 +301,62 @@ Performance, Fiddles, etc
     }());
 
 /******************************************************************************/
-// GENERAL
+// DOM RETREIVAL
 
-    $P.removeElement = function (element) {
-        element.parentNode.removeChild(element);
+    $P.el = function (selector_native) {
+        var type = selector_native.match(/^(@|#|\.)([\x20-\x7E]+)$/);
+        if (!type) {
+            return {error: "mal-formed selector"};
+        }
+        var type1 = type[1];
+        var type2 = type[2];
+        if (type1 === '#') {
+            return doc.getElementById(type2);
+        }
+        if (type1 === '.' && doc.getElementsByClassName) {
+            return doc.getElementsByClassName(type2);
+        }
+        if (type1 === '@') {
+            return doc.getElementsByName(type2);
+        }
+        return {error: "mal-formed selector"};
     };
 
-    $P.insertAfter = function (newNode, refNode) {
-        refNode.parentNode.insertBefore(newNode, refNode.nextSibling);
+    $P.klass = function (klass) {
+        return doc.getElementsByClassName(klass.slice(1));
     };
+
+    $P.id = function (id) {
+        return doc.getElementById(id.slice(1));
+    };
+
+    // name is read only
+
+    $P.names = function (name) {
+        return doc.getElementsByName(name.slice(1));
+    };
+
+/******************************************************************************/
+// test these 2 July 26, 2013
+
+    $P.removeElement = function (el) {
+        return el.parentNode.removeChild(el);
+    };
+
+    // insertBefore returns what?
+
+    $P.insertAfter = function (el, ref) {
+        ref.parentNode.insertBefore(el, ref.nextSibling);
+    };
+
+/******************************************************************************/
+// DOM MANIPULATION
 
     $P.isElement = function (obj) {
         return !!(obj && obj.nodeType === 1);
     };
+
+    // will always loop atleast once
 
     $P.eachChild = function (ref_el, func, con) {
         var iter_el = ref_el.firstChild,
@@ -313,6 +370,8 @@ Performance, Fiddles, etc
         } while (iter_el !== null);
     };
 
+    // convert html string to a DOM element
+
     $P.HTMLToElement = function (html) {
         var div = document.createElement('div');
         div.innerHTML = html;
@@ -321,17 +380,14 @@ Performance, Fiddles, etc
 
     $P.getData = function (id) {
         var data,
-            obj,
-            el;
-        el = document.getElementById(id);
-        obj = {};
-
+            obj = {},
+            el = document.getElementById(id);
         if (el.dataset) {
             $A.someKey(el.dataset, function (val, key) {
                 obj[key] = val;
             });
         } else {
-            data = [].filter.call(el.attributes, function (at) {
+            data = $A.filter(el.attributes, function (at) {
                 return (/^data-/).test(at.name);
             });
             $A.someIndex(data, function (val, i) {
@@ -342,7 +398,7 @@ Performance, Fiddles, etc
     };
 
 /******************************************************************************/
-// MANIPULATE CLASSNAME
+// MANIPULATE CLASSNAME ATTRIBUTE
 
     $R.hasClass = function (el, name) {
         return new RegExp('(\\s|^)' + name, 'g').test(el.className);
@@ -561,12 +617,9 @@ Performance, Fiddles, etc
     };
 
     $R.expandFont = function (direction, max_time) {
-
-        // initialize 'this'
-
         var self = this,
             el_prim = self[0],
-            $R = {};
+            privates = {};
 
         if (el_prim.timer_id) {
             return;
@@ -575,21 +628,21 @@ Performance, Fiddles, etc
         el_prim.style.fontSize = $P.getComputedStyle(el_prim,
                 null).getPropertyValue("font-size");
 
-        $R.final_size = parseInt(el_prim.style.fontSize, $R.RADIX);
-        $R.GRANULARITY = 10;
-        $R.time_elapsed = 0;
+        privates.final_size = parseInt(el_prim.style.fontSize, privates.RADIX);
+        privates.GRANULARITY = 10;
+        privates.time_elapsed = 0;
         (function next() {
             $A.someKey(self, function (val) {
                 if (direction === 'up') {
-                    val.style.fontSize = (($R.time_elapsed / max_time) *
-                            $R.final_size) + 'px';
+                    val.style.fontSize = ((privates.time_elapsed / max_time) *
+                            privates.final_size) + 'px';
 
                 } else if (direction === 'down') {
-                    val.style.fontSize = ((max_time - $R.time_elapsed) /
+                    val.style.fontSize = ((max_time - privates.time_elapsed) /
                             max_time) + 'px';
                 }
             });
-            $R.time_elapsed += $R.GRANULARITY;
+            privates.time_elapsed += privates.GRANULARITY;
 
             // completed, do not call next
 
@@ -600,15 +653,15 @@ Performance, Fiddles, etc
 
             // intermediate call to next
 
-            } else if ($R.time_elapsed < max_time) {
-                el_prim.timer_id = $P.setTimeout(next, $R.GRANULARITY);
+            } else if (privates.time_elapsed < max_time) {
+                el_prim.timer_id = $P.setTimeout(next, privates.GRANULARITY);
 
             // normalizing call to guarante (elapsed === max)
 
-            } else if ($R.time_elapsed >= max_time) {
-                el_prim.timer_id = $P.setTimeout(next, $R.GRANULARITY);
+            } else if (privates.time_elapsed >= max_time) {
+                el_prim.timer_id = $P.setTimeout(next, privates.GRANULARITY);
                 el_prim.timer_id_done = true;
-                $R.time_elapsed = max_time;
+                privates.time_elapsed = max_time;
             }
         }());
     };
@@ -744,10 +797,8 @@ Performance, Fiddles, etc
             xhr = new win.XMLHttpRequest();
             xhr.open('GET', config_ajax.url, true);
             xhr.onreadystatechange = function () {
-                if (this.readyState === 4) {
-                    if (this.status === 200) {
-                        config_ajax.callback(xhr.responseText);
-                    }
+                if (this.readyState === 4 && this.status === 200) {
+                    config_ajax.callback(xhr.responseText);
                 }
             };
             xhr.send(null);
@@ -761,10 +812,8 @@ Performance, Fiddles, etc
             xhr.setRequestHeader("Content-type",
                     "application/x-www-form-urlencoded");
             xhr.onreadystatechange = function () {
-                if (this.readyState === 4) {
-                    if (this.status === 200) {
-                        config_ajax.callback(xhr.responseText);
-                    }
+                if (this.readyState === 4 && this.status === 200) {
+                    config_ajax.callback(xhr.responseText);
                 }
             };
             xhr.send(config_ajax.data);
@@ -776,10 +825,8 @@ Performance, Fiddles, etc
             xhr = new win.XMLHttpRequest();
             xhr.open("POST", config_ajax.url, true);
             xhr.onreadystatechange = function () {
-                if (this.readyState === 4) {
-                    if (this.status === 200) {
-                        config_ajax.callback(xhr.responseText);
-                    }
+                if (this.readyState === 4 && this.status === 200) {
+                    config_ajax.callback(xhr.responseText);
                 }
             };
             xhr.send(config_ajax.data);
@@ -852,77 +899,53 @@ Performance, Fiddles, etc
 /******************************************************************************/
 // WRAPS
 
-    $P.getComputedStyle = function (arg1, arg2) {
-        return win.getComputedStyle(arg1, arg2);
+    // timeouts
+
+    $P.setTimeout = function () {
+        return win.setTimeout.apply(win, arguments);
     };
 
-    $P.clearTimeout = function (arg1) {
-        return win.clearTimeout(arg1);
+    $P.clearTimeout = function () {
+        return win.clearTimeout.apply(win, arguments);
     };
 
-    $P.setTimeout = function (arg1, arg2) {
-        return win.setTimeout(arg1, arg2);
+    $P.setInterval = function () {
+        return win.setInterval.apply(win, arguments);
     };
+
+    $P.clearInterval = function () {
+        return win.clearInterval.apply(win, arguments);
+    };
+
+    // styles
+
+    $P.getComputedStyle = function () {
+        return win.getComputedStyle.apply(win, arguments);
+    };
+
+    // fragments
 
     $P.createDocumentFragment = function () {
-        return doc.createDocumentFragment();
+        return doc.createDocumentFragment.apply(doc, arguments);
     };
 
-    $P.createElement = function (arg1) {
-        return doc.createElement(arg1);
+    // elements
+
+    $P.createElement = function () {
+        return doc.createElement.apply(doc, arguments);
     };
 
-    $P.setInterval = function (arg1, arg2) {
-        return win.setInterval(arg1, arg2);
-    };
-
-    $P.clearInterval = function (arg1) {
-        return win.clearInterval(arg1);
-    };
-
-    $P.indexedDB = win.indexedDB || win.mozIndexedDB || win.webKitIndexedDB;
+    // oo style
 
     $P.FormData = win.FormData;
 
     $P.FileReader = win.FileReader;
 
-    $P.localStorage = localStorage;
+    // other style
 
-    $P.sessionStorage = sessionStorage;
+    $P.localStorage = win.localStorage;
 
-    $P.el = function (selector_native) {
-        var type = selector_native.match(/^(@|#|\.)([\x20-\x7E]+)$/),
-            type1 = type[1],
-            type2 = type[2];
-        if (!type) {
-            return;
-        }
-        if (type1 === '#') {
-            return doc.getElementById(type2);
-        }
-        if (type1 === '.' && doc.getElementsByClassName) {
-            return doc.getElementsByClassName(type2);
-        }
-        if (type1 === '@') {
-            return doc.getElementsByName(type2);
-        }
-    };
-
-    // class is reserved
-
-    $P.klass = function (klass) {
-        return doc.getElementsByClassName(klass.slice(1));
-    };
-
-    $P.id = function (id) {
-        return doc.getElementById(id.slice(1));
-    };
-
-    // name is read only
-
-    $P.names = function (name) {
-        return doc.getElementsByName(name.slice(1));
-    };
+    $P.sessionStorage = win.sessionStorage;
 
 /******************************************************************************/
 // LOG
@@ -1049,9 +1072,15 @@ Performance, Fiddles, etc
         };
         publik.removeStyles = function () {
             var styles = document.getElementsByTagName("style"),
-                i;
+                i,
+                temp1,
+                temp2;
+            $A.log(styles.length);
+            $A.log(styles);
             for (i = styles.length; i > 0; i--) {
-                (styles[i]).parentNode.removeChild(styles[i]);
+                temp1 = styles[i];
+                temp2 = styles[i];
+                temp1.parentNode.removeChild(temp2);
             }
         };
         publik.removeScripts = function () {
