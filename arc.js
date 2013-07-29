@@ -261,7 +261,7 @@ Algorithms (compare to nczonline.net)
     $P.someIndex(['Arguments', 'Function', 'String', 'Number',
         'Date', 'RegExp', 'Object'], function (val) {
         $P['is' + val] = function (obj) {
-            return $P.isType(name, obj);
+            return $P.isType(val, obj);
         };
     });
 
@@ -973,7 +973,7 @@ Algorithms (compare to nczonline.net)
             return;
         }
 
-        // browser objects, event ...
+        // host objects, event ...
 
         if (type === 'Event') {
             logger('LOG|host|event>');
@@ -1186,6 +1186,25 @@ Algorithms (compare to nczonline.net)
             throw "booter requires utility, dom, and comms module";
         }
     }());
+
+/******************************************************************************/
+
+// ascii printable characters
+// https://en.wikipedia.org/wiki/ASCII_Character_Set#ASCII_printable_characters
+// [\x20-\x7E]
+
+    $P.addElement = function (source) {
+        var file_type = source.match(/temp/)[1],
+            element;
+        if (file_type === 'js') {
+            element = document.createElement('script');
+            element.onload = callback;
+            element.async = true;
+            element.src = source;
+            document.head.appendChild(element);
+            return;
+        }
+    };
 
 /******************************************************************************/
 
