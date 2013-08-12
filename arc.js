@@ -344,6 +344,28 @@ Algorithms (compare to nczonline.net)
     };
 
 /******************************************************************************/
+// DOM REPORTING
+
+    $P.rDOM = function () {
+        var z_arr = {},
+            all_el = document.body.getElementsByTagName("*"),
+            i,
+            len,
+            cur,
+            style,
+            z_index;
+        for (i = 0, len = all_el.length; i < len; i++) {
+            cur = all_el[i];
+            style = win.getComputedStyle(cur);
+            z_index = style.getPropertyValue("z-index");
+            if (z_index !== "auto") {
+                z_arr[i] = [cur.id, cur.tagName, cur.className, z_index];
+            }
+        }
+        return z_arr;
+    };
+
+/******************************************************************************/
 // DOM MANIPULATION
 
     $P.removeElement = function (el) {
@@ -1449,7 +1471,12 @@ Algorithms (compare to nczonline.net)
                 return;
             }
         }
-
+        if (!name) {
+            name = 'X';
+        }
+        if (!browser_version) {
+            browser_version = 'y';
+        }
         element = document.getElementById('browser_validation');
         element.innerHTML += " You are running " + name +
             " " + browser_version + ".";
